@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useUser } from './context/UserContext';
@@ -6,16 +6,28 @@ import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { healthData } = useUser();
+  const { healthData, currentUser } = useUser();
+
+  // Redirect to user selection if no user is selected
+  useEffect(() => {
+    if (!currentUser) {
+      router.replace('/users');
+    }
+  }, [currentUser, router]);
 
   const navigateToScanner = () => {
     router.push('/camera');
   };
 
+  // Show nothing during redirect
+  if (!currentUser) {
+    return null;
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Welcome to Cleanse</Text>
+        <Text style={styles.title}>Welcome, {currentUser.name}</Text>
         <Text style={styles.subtitle}>
           Scan product barcodes to get personalized health insights
         </Text>
@@ -92,13 +104,23 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      <TouchableOpacity 
-        style={styles.scanButton}
-        onPress={navigateToScanner}
-        activeOpacity={0.7}
-      >
-        <Text style={styles.scanButtonText}>Scan a Product</Text>
-      </TouchableOpacity>
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity 
+          style={styles.scanButton}
+          onPress={navigateToScanner}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.scanButtonText}>Scan a Product</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.switchUserButton}
+          onPress={() => router.push('/users')}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.switchUserText}>Switch User</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -185,11 +207,15 @@ const styles = StyleSheet.create({
     fontSize: SIZES.small,
     color: COLORS.primary,
   },
+  buttonContainer: {
+    paddingHorizontal: SIZES.paddingLarge,
+    paddingBottom: SIZES.paddingLarge,
+  },
   scanButton: {
     backgroundColor: COLORS.secondary,
     paddingVertical: SIZES.paddingMedium,
     borderRadius: SIZES.borderRadiusMedium,
-    margin: SIZES.marginLarge,
+    marginBottom: SIZES.marginMedium,
     alignItems: 'center',
     justifyContent: 'center',
     ...SHADOWS.medium,
@@ -198,5 +224,19 @@ const styles = StyleSheet.create({
     ...FONTS.bold,
     fontSize: SIZES.large,
     color: COLORS.white,
+  },
+  switchUserButton: {
+    backgroundColor: COLORS.white,
+    paddingVertical: SIZES.paddingMedium,
+    borderRadius: SIZES.borderRadiusMedium,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  switchUserText: {
+    ...FONTS.medium,
+    fontSize: SIZES.medium,
+    color: COLORS.primary,
   },
 }); 

@@ -1,35 +1,59 @@
 import React from 'react';
 import { Stack } from 'expo-router';
 import { useUser } from '../context/UserContext';
-import SurveyContainer from '../screens/survey/SurveyContainer';
+import { useRouter } from 'expo-router';
 
 const AppNavigator = () => {
-  const { completedSurvey } = useUser();
+  const { currentUser } = useUser();
+  const router = useRouter();
+
+  // Handle survey completion
+  const handleSurveyComplete = () => {
+    router.replace('/');
+  };
 
   return (
-    <>
-      {!completedSurvey ? (
-        // Show the survey if not completed
-        <SurveyContainer 
-          onSurveyComplete={() => {
-            // After survey completion, the Stack navigator will show the main app
-          }} 
-        />
-      ) : (
-        // Show the main app stack when survey is completed
-        <Stack
-          screenOptions={{
-            headerStyle: {
-              backgroundColor: '#2367DC',
-            },
-            headerTintColor: '#FFFFFF',
-            headerTitleStyle: {
-              fontWeight: 'bold',
-            },
-          }}
-        />
-      )}
-    </>
+    <Stack
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: '#2367DC',
+        },
+        headerTintColor: '#FFFFFF',
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+      }}
+    >
+      {/* Define screens */}
+      <Stack.Screen
+        name="index"
+        options={{
+          title: 'Home',
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="users"
+        options={{
+          title: 'User Selection',
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="camera"
+        options={{
+          title: 'Scan Product',
+          headerShown: true,
+        }}
+      />
+      <Stack.Screen
+        name="screens/survey/index"
+        options={{
+          title: 'Health Profile',
+          headerShown: false,
+        }}
+      />
+    </Stack>
   );
 };
 

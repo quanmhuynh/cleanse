@@ -1,4 +1,5 @@
-import React, { createContext, useState, useContext, ReactNode } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
+import { User, getUser, saveUser, createUser } from '../../utils/userStorage';
 
 // Define interface for health data
 export interface UserHealthData {
@@ -25,12 +26,15 @@ export interface UserHealthData {
 }
 
 interface UserContextType {
+  currentUser: User | null;
+  setCurrentUser: (user: User | null) => void;
   completedSurvey: boolean;
   setCompletedSurvey: (completed: boolean) => void;
   healthData: UserHealthData;
   updateHealthData: (data: Partial<UserHealthData>) => void;
   currentSurveyStep: number;
   setCurrentSurveyStep: (step: number) => void;
+  saveCurrentUser: () => Promise<void>;
 }
 
 // Create initial health data
@@ -54,19 +58,34 @@ const initialHealthData: UserHealthData = {
 
 // Create context with default values
 const UserContext = createContext<UserContextType>({
+  currentUser: null,
+  setCurrentUser: () => {},
   completedSurvey: false,
   setCompletedSurvey: () => {},
   healthData: initialHealthData,
   updateHealthData: () => {},
   currentSurveyStep: 1,
   setCurrentSurveyStep: () => {},
+  saveCurrentUser: async () => {},
 });
 
 // Provider component that wraps app
 export function UserProvider({ children }: { children: ReactNode }) {
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [completedSurvey, setCompletedSurvey] = useState(false);
   const [healthData, setHealthData] = useState<UserHealthData>(initialHealthData);
   const [currentSurveyStep, setCurrentSurveyStep] = useState(1);
+
+  // Load data from current user
+  useEffect(() => {
+    if (currentUser) {
+      setHealthData(currentUser.healthData);
+      setCompletedSurvey(currentUser.completedSurvey);
+    } else {
+      setHealthData(initialHealthData);
+      setCompletedSurvey(false);
+    }
+  }, [currentUser]);
 
   // Function to update health data
   const updateHealthData = (data: Partial<UserHealthData>) => {
@@ -81,14 +100,30 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }));
   };
 
+  // Function to save current user data
+  const saveCurrentUser = async () => {
+    if (currentUser) {
+      const updatedUser = {
+        ...currentUser,
+        healthData,
+        completedSurvey
+      };
+      await saveUser(updatedUser);
+      setCurrentUser(updatedUser);
+    }
+  };
+
   return (
     <UserContext.Provider value={{
+      currentUser,
+      setCurrentUser,
       completedSurvey,
       setCompletedSurvey,
       healthData,
       updateHealthData,
       currentSurveyStep,
-      setCurrentSurveyStep
+      setCurrentSurveyStep,
+      saveCurrentUser
     }}>
       {children}
     </UserContext.Provider>
