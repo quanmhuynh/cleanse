@@ -20,7 +20,7 @@ const PreferencesScreen = ({
   onComplete: () => void, 
   onBack: () => void 
 }) => {
-  const { healthData, updateHealthData, currentSurveyStep, setCompletedSurvey, saveCurrentUser } = useUser();
+  const { healthData, updateHealthData, currentSurveyStep, setCompletedSurvey } = useUser();
   const [preferences, setPreferences] = useState(healthData.additionalPreferences || '');
 
   const handleComplete = () => {
@@ -28,9 +28,7 @@ const PreferencesScreen = ({
       additionalPreferences: preferences,
     });
     setCompletedSurvey(true);
-    saveCurrentUser().then(() => {
-      onComplete();
-    });
+    onComplete();
   };
 
   return (
