@@ -34,6 +34,7 @@ dependencies = [
     { name = "fastapi" },
     { name = "firecrawl" },
     { name = "langchain-openai" },
+    { name = "openai" },
     { name = "requests" },
     { name = "requests-oauthlib" },
 ]
@@ -45,6 +46,7 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.115.12" },
     { name = "firecrawl", specifier = ">=1.15.0" },
     { name = "langchain-openai", specifier = ">=0.3.11" },
+    { name = "openai", specifier = ">=1.69.0" },
     { name = "requests", specifier = ">=2.32.3" },
     { name = "requests-oauthlib", specifier = ">=2.0.0" },
 ]

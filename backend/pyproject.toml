@@ -10,6 +10,7 @@ dependencies = [
     "fastapi>=0.115.12",
     "firecrawl>=1.15.0",
     "langchain-openai>=0.3.11",
+    "openai>=1.69.0",
     "requests>=2.32.3",
     "requests-oauthlib>=2.0.0",
 ]
