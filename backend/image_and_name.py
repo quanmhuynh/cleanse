@@ -42,7 +42,7 @@ def scrape_image(upc):
     if not image_tag or not image_tag.get("src"):
         raise Exception("Product image source not found.")
     product_image = image_tag["src"]  # This should be the full image URL
-
+    print(product_image)
     return product_image
 
 # Example usage
