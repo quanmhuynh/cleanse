@@ -1,16 +1,18 @@
 import React from 'react';
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { View } from 'react-native';
 import { BottomTabBar, createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { useUser } from '../context/UserContext';
 import SurveyContainer from '../screens/survey/SurveyContainer';
+import ProfileSelectionScreen from '../screens/ProfileSelectionScreen';
 import { COLORS, SIZES, SHADOWS } from '../../constants/theme';
 import { BlurView } from 'expo-blur';
 import HomeScreen from '../screens/HomeScreen';
 import HistoryScreen from '../screens/HistoryScreen';
 import RecommendationsScreen from '../screens/RecommendationsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import { useEffect } from 'react';
 
 const Tab = createBottomTabNavigator();
 
@@ -114,37 +116,55 @@ const TabNavigator = () => {
 };
 
 const AppNavigator = () => {
-  const { completedSurvey } = useUser();
+  const { hasSelectedProfile, completedSurvey, selectProfile } = useUser();
+  const router = useRouter();
+  const segments = useSegments();
 
+  // Effect to handle navigation based on app state
+  useEffect(() => {
+    if (completedSurvey) {
+      // If survey is completed, navigate to tabs
+      if (segments[0] !== '(tabs)') {
+        router.replace('/(tabs)');
+      }
+    }
+  }, [completedSurvey, segments]);
+
+  // If user hasn't selected a profile, show profile selection
+  if (!hasSelectedProfile) {
+    return (
+      <ProfileSelectionScreen 
+        onProfileSelect={(profileId) => selectProfile(profileId)}
+      />
+    );
+  }
+  
+  // If user hasn't completed the survey, show the survey
+  if (!completedSurvey) {
+    return (
+      <SurveyContainer 
+        onSurveyComplete={() => {
+          // The effect above will handle the navigation
+        }} 
+      />
+    );
+  }
+
+  // For completed users, let the router handle the navigation to tabs
   return (
-    <>
-      {!completedSurvey ? (
-        // Show the survey if not completed
-        <SurveyContainer 
-          onSurveyComplete={() => {
-            // After survey completion, the Stack navigator will show the main app
-          }} 
-        />
-      ) : (
-        // Show the main app stack when survey is completed
-        <Stack
-          screenOptions={{
-            headerShown: false,
-          }}
-        >
-          <Stack.Screen name="(tabs)" options={{}} />
-          <Stack.Screen 
-            name="camera"
-            options={{
-              headerShown: true,
-              headerTitle: "Scan Product",
-              headerStyle: { backgroundColor: COLORS.primary },
-              headerTintColor: COLORS.white,
-            }}
-          />
-        </Stack>
-      )}
-    </>
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen 
+        name="camera"
+        options={{
+          headerShown: true,
+          headerTitle: "Scan Product",
+          headerStyle: { backgroundColor: COLORS.primary },
+          headerTintColor: COLORS.white,
+          presentation: 'modal',
+        }}
+      />
+    </Stack>
   );
 };
 

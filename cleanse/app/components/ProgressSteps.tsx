@@ -92,11 +92,11 @@ const styles = StyleSheet.create({
   },
   stepIndicatorWrapper: {
     alignItems: 'center',
-    width: 60,
+    width: 80,
   },
   stepIndicator: {
-    width: 30,
-    height: 30,
+    width: 80,
+    height: 40,
     borderRadius: 15,
     backgroundColor: COLORS.white,
     borderWidth: 2,
@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
   },
   stepLabel: {
     ...FONTS.regular,
-    fontSize: SIZES.small,
+    fontSize: SIZES.medium,
     color: COLORS.mediumGray,
     textAlign: 'center',
   },

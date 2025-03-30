@@ -9,8 +9,9 @@ interface SurveyContainerProps {
 }
 
 const SurveyContainer = ({ onSurveyComplete }: SurveyContainerProps) => {
-  const { setCurrentSurveyStep } = useUser();
+  const { setCurrentSurveyStep, setCompletedSurvey, updateHealthData } = useUser();
   const [step, setStep] = useState(1);
+  const [preferences, setPreferences] = useState('');
 
   useEffect(() => {
     setCurrentSurveyStep(step);
@@ -24,6 +25,18 @@ const SurveyContainer = ({ onSurveyComplete }: SurveyContainerProps) => {
     setStep(prevStep => prevStep - 1);
   };
 
+  const handleComplete = () => {
+    updateHealthData({
+      additionalPreferences: preferences,
+    });
+    
+    // Save the completed survey status
+    setCompletedSurvey(true);
+    
+    // Call the onComplete callback
+    onSurveyComplete();
+  };
+
   // Render the appropriate step
   const renderStep = () => {
     switch (step) {
@@ -32,7 +45,7 @@ const SurveyContainer = ({ onSurveyComplete }: SurveyContainerProps) => {
       case 2:
         return <HealthConditionsScreen onNext={handleNext} onBack={handleBack} />;
       case 3:
-        return <PreferencesScreen onComplete={onSurveyComplete} onBack={handleBack} />;
+        return <PreferencesScreen onComplete={handleComplete} onBack={handleBack} />;
       default:
         return <PersonalDetailsScreen onNext={handleNext} />;
     }
