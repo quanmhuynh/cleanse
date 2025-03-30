@@ -1,4 +1,3 @@
-
 import sqlite3
 import json
 from datetime import datetime
@@ -120,6 +119,24 @@ class DatabaseManager:
             return user
         return None
 
+    def get_users(self):
+        """
+        Retrieve all users from the Users table.
+
+        Returns:
+            A list of dictionaries, each containing user details.
+        """
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT * FROM Users;")
+        rows = cursor.fetchall()
+        all_users = []
+        for row in rows:
+            user = dict(row)
+            # Convert the JSON formatted comorbidities back into a list.
+            user["comorbidities"] = json.loads(user["comorbidities"])
+            all_users.append(user)
+        return all_users
+
     def add_history(
         self,
         email: str,
@@ -237,6 +254,15 @@ if __name__ == "__main__":
     except sqlite3.IntegrityError:
         print("User already exists; proceeding to fetch details.")
 
+    # Retrieve and print a specific user.
+    user = db_manager.get_user("user@example.com")
+    print("Retrieved single user:")
+    print(user)
+
+    # Retrieve and print all users.
+    all_users = db_manager.get_users()
+    print("Retrieved all users:")
+    print(all_users)
 
     # View the database after additions.
     print("Database content after adding data:")

@@ -87,9 +87,14 @@ def add_history(history: HistoryInputModel):
             date=current_date,
         )
         # Return just the LLM response.
-        return {"score": llm_response.score, "reasoning": llm_response.reasoning, 'image_url': image_url}
+        return {
+            "score": llm_response.score,
+            "reasoning": llm_response.reasoning,
+            "image_url": image_url,
+        }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
 
 @app.get("/get_history")
 def get_history(email: str):
@@ -99,7 +104,17 @@ def get_history(email: str):
     return history_list
 
 
+@app.get("/get_users")
+def get_users():
+    """
+    Retrieve all users from the database.
+    """
+    users = db_manager.get_users()
+    if not users:
+        raise HTTPException(status_code=404, detail="No users found")
+    return users
+
+
 if __name__ == "__main__":
     import uvicorn
-
     uvicorn.run(app, host="0.0.0.0", port=8000)
