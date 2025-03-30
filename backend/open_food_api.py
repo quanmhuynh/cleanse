@@ -23,7 +23,7 @@ def get_product_info(upc_code: str):
     )
 
     # Retrieve product details using the UPC code
-    result = api.product.get(upc_code, fields=["ingredients_text", "nutriscore_score", "nutriscore_grade", "nova_group", "allergens-"])
+    result = api.product.get(upc_code, fields=["ingredients_text", "nutriscore_score", "nutriscore_grade", "nova_group", "allergens"])
     # print(result)
 
     return result

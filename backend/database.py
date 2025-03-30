@@ -9,7 +9,7 @@ class DatabaseManager:
         """Initialize the manager and run migrations to create the required tables."""
         self.db_file = db_file
         # Create a connection and enable row_factory to return dict-like rows.
-        self.conn = sqlite3.connect(self.db_file)
+        self.conn = sqlite3.connect(self.db_file, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         # Enable foreign keys support.
         self.conn.execute("PRAGMA foreign_keys = ON")
@@ -237,14 +237,6 @@ if __name__ == "__main__":
     except sqlite3.IntegrityError:
         print("User already exists; proceeding to fetch details.")
 
-    # Adding a history record.
-    db_manager.add_history(
-        email="user@example.com",
-        upc="123456789012",
-        score=85,
-        reasoning="Good adherence to diet",
-        image_url="http://example.com/image.jpg",
-    )
 
     # View the database after additions.
     print("Database content after adding data:")

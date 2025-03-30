@@ -2,7 +2,7 @@
 import requests
 from bs4 import BeautifulSoup
 
-def scrape_product_details(upc):
+def scrape_image(upc):
     """
     Given a UPC code, scrape the Go-UPC search results page for the product name
     and product image URL.
@@ -43,7 +43,7 @@ def scrape_product_details(upc):
         raise Exception("Product image source not found.")
     product_image = image_tag["src"]  # This should be the full image URL
 
-    return {"name": product_name, "image": product_image}
+    return product_image
 
 # Example usage
 if __name__ == "__main__":
