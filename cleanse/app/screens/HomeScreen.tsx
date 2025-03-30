@@ -1,148 +1,369 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView } from 'react-native';
+import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { useUser } from '../context/UserContext';
 import { COLORS, SIZES, FONTS, SHADOWS } from '../../constants/theme';
 
+// Define types for our product data
+interface ProductWarning {
+  [index: number]: string;
+}
+
+interface ProductRecommendation {
+  [index: number]: string;
+}
+
+// Define types for history items
+interface NutritionInfo {
+  sugar: string;
+  sodium: string;
+  fat: string;
+}
+
+interface HistoryItem {
+  id: string;
+  productName: string;
+  brand: string;
+  dateScanned: string;
+  imageUrl: string;
+  healthScore: number;
+  nutritionInfo: NutritionInfo;
+}
+
+interface ProductData {
+  name: string;
+  brand: string;
+  image: string;
+  healthScore: number;
+  nutritionalInfo: {
+    calories: string;
+    sugar: string;
+    sodium: string;
+    protein: string;
+    fat: string;
+  };
+  warnings: string[];
+  recommendations: string[];
+}
+
+// Recent scan history data - using the same format as in HistoryScreen
+const recentScansData: HistoryItem[] = [
+];
+
+// Function to get color based on score
+const getScoreColor = (score: number): string => {
+  if (score >= 70) return COLORS.success;
+  if (score >= 40) return COLORS.secondary;
+  return COLORS.error;
+};
+
 const HomeScreen = () => {
   const router = useRouter();
-  const { healthData } = useUser();
+  // Camera permissions state
+  const [permission, requestPermission] = useCameraPermissions();
+  // State to store scanned barcode info
+  const [scannedData, setScannedData] = useState<string | null>(null);
+  const [scannedType, setScannedType] = useState<string | null>(null);
+  // State to track if we should scan
+  const [scanning, setScanning] = useState(true);
+  // Loading state
+  const [loading, setLoading] = useState(false);
+  // Mock Product data (in a real app, this would come from an API)
+  const [product, setProduct] = useState<ProductData | null>(null);
 
-  const navigateToScanner = () => {
-    router.push('/camera');
+  // Handle barcode scanning result
+  const handleBarcodeScanned = ({ type, data }: BarcodeScanningResult) => {
+    if (scanning) {
+      setScannedData(data);
+      setScannedType(type);
+      setScanning(false);
+      setLoading(true);
+      
+      // Simulate API call to get product information
+      setTimeout(() => {
+        // Mock product data
+        setProduct({
+          name: "Organic Granola",
+          brand: "Nature's Best",
+          image: "https://cdn-icons-png.flaticon.com/512/3724/3724788.png",
+          healthScore: 82,
+          nutritionalInfo: {
+            calories: "220kcal",
+            sugar: "12g",
+            sodium: "15mg",
+            protein: "5g",
+            fat: "8g"
+          },
+          warnings: [
+            "Contains nuts and seeds",
+            "May contain traces of milk"
+          ],
+          recommendations: [
+            "Good source of fiber",
+            "Low sodium"
+          ]
+        });
+        setLoading(false);
+      }, 2000);
+    }
+  };
+
+  // Reset scanner
+  const resetScanner = () => {
+    setScannedData(null);
+    setScannedType(null);
+    setScanning(true);
+    setProduct(null);
+  };
+
+  // Render the Product Result Screen
+  const renderProductScreen = () => {
+    if (loading) {
+      return (
+        <View style={styles.loadingContainer}>
+          <View style={styles.loadingIndicator}>
+            <MaterialCommunityIcons name="barcode-scan" size={40} color={COLORS.primary} />
+            <Text style={styles.loadingText}>Fetching product information...</Text>
+          </View>
+        </View>
+      );
+    }
+
+    if (product) {
+      return (
+        <View style={styles.productContainer}>
+          <View style={styles.productCard}>
+            <View style={styles.productHeader}>
+              <Image 
+                source={{ uri: product.image }} 
+                style={styles.productImage}
+                resizeMode="contain"
+              />
+              <View style={styles.productInfo}>
+                <Text style={styles.productName}>{product.name}</Text>
+                <Text style={styles.brandName}>{product.brand}</Text>
+                <View style={styles.healthScoreContainer}>
+                  <Text style={styles.healthScoreLabel}>Health Score:</Text>
+                  <View style={styles.healthScoreBadge}>
+                    <Text style={styles.healthScoreValue}>{product.healthScore}</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+            
+            <View style={styles.divider} />
+            
+            <Text style={styles.sectionTitle}>Nutritional Information</Text>
+            <View style={styles.nutritionContainer}>
+              <View style={styles.nutritionItem}>
+                <Text style={styles.nutritionValue}>{product.nutritionalInfo.calories}</Text>
+                <Text style={styles.nutritionLabel}>Calories</Text>
+              </View>
+              <View style={styles.nutritionItem}>
+                <Text style={styles.nutritionValue}>{product.nutritionalInfo.protein}</Text>
+                <Text style={styles.nutritionLabel}>Protein</Text>
+              </View>
+              <View style={styles.nutritionItem}>
+                <Text style={styles.nutritionValue}>{product.nutritionalInfo.fat}</Text>
+                <Text style={styles.nutritionLabel}>Fat</Text>
+              </View>
+              <View style={styles.nutritionItem}>
+                <Text style={styles.nutritionValue}>{product.nutritionalInfo.sugar}</Text>
+                <Text style={styles.nutritionLabel}>Sugar</Text>
+              </View>
+              <View style={styles.nutritionItem}>
+                <Text style={styles.nutritionValue}>{product.nutritionalInfo.sodium}</Text>
+                <Text style={styles.nutritionLabel}>Sodium</Text>
+              </View>
+            </View>
+            
+            <View style={styles.divider} />
+            
+            {product.warnings.length > 0 && (
+              <>
+                <Text style={styles.sectionTitle}>Warnings</Text>
+                <View style={styles.warningsContainer}>
+                  {product.warnings.map((warning, index) => (
+                    <View key={index} style={styles.warningItem}>
+                      <MaterialCommunityIcons name="alert-circle" size={18} color={COLORS.secondary} />
+                      <Text style={styles.warningText}>{warning}</Text>
+                    </View>
+                  ))}
+                </View>
+                <View style={styles.divider} />
+              </>
+            )}
+            
+            {product.recommendations.length > 0 && (
+              <>
+                <Text style={styles.sectionTitle}>Recommendations</Text>
+                <View style={styles.recommendationsContainer}>
+                  {product.recommendations.map((recommendation, index) => (
+                    <View key={index} style={styles.recommendationItem}>
+                      <MaterialCommunityIcons name="check-circle" size={18} color={COLORS.success} />
+                      <Text style={styles.recommendationText}>{recommendation}</Text>
+                    </View>
+                  ))}
+                </View>
+              </>
+            )}
+          </View>
+          
+          <TouchableOpacity 
+            style={styles.scanAgainButton} 
+            onPress={resetScanner}
+          >
+            <MaterialCommunityIcons name="barcode-scan" size={24} color={COLORS.white} />
+            <Text style={styles.scanAgainButtonText}>Scan Another Product</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    return null;
+  };
+
+  // Render camera permissions screen
+  const renderPermissionsScreen = () => {
+    if (!permission) {
+      return (
+        <View style={styles.permissionsContainer}>
+          <Text style={styles.permissionsText}>Checking camera permissions...</Text>
+        </View>
+      );
+    }
+
+    if (!permission.granted) {
+      return (
+        <View style={styles.permissionsContainer}>
+          <Text style={styles.permissionsTitle}>Camera Permission</Text>
+          <Text style={styles.permissionsText}>We need your permission to use the camera to scan product barcodes.</Text>
+          <TouchableOpacity 
+            style={styles.permissionsButton} 
+            onPress={requestPermission}
+          >
+            <Text style={styles.permissionsButtonText}>Grant Permission</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    return null;
+  };
+
+  // Render a recent scan item
+  const renderRecentScanItem = (item: HistoryItem) => (
+    <TouchableOpacity 
+      key={item.id}
+      style={styles.recentScanItem}
+      activeOpacity={0.7}
+    >
+      <Image 
+        source={{ uri: item.imageUrl }} 
+        style={styles.recentScanImage}
+        resizeMode="contain"
+      />
+      <View style={styles.recentScanInfo}>
+        <Text style={styles.recentScanName} numberOfLines={1}>{item.productName}</Text>
+        <Text style={styles.recentScanBrand} numberOfLines={1}>{item.brand}</Text>
+      </View>
+      <View style={[styles.recentScanScore, { backgroundColor: getScoreColor(item.healthScore) + '20' }]}>
+        <Text style={[styles.recentScanScoreText, { color: getScoreColor(item.healthScore) }]}>
+          {item.healthScore}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+
+  // Main render for home screen with integrated camera scanner
+  const renderHomeContent = () => {
+    return (
+      <ScrollView 
+        style={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        bounces={false} // Prevents bouncing on iOS
+        overScrollMode="never" // Prevents over-scrolling on Android
+      >
+        <View style={styles.scannerContainer}>
+          <View style={styles.embeddedCameraContainer}>
+            <CameraView
+              style={styles.camera}
+              onBarcodeScanned={scanning ? handleBarcodeScanned : undefined}
+              barcodeScannerSettings={{
+                barcodeTypes: ["qr", "ean13", "ean8", "code128", "code39", "code93", "upc_e", "upc_a"],
+              }}
+            >
+              <View style={styles.scanFrame}>
+                <View style={styles.scannerAnimation} />
+              </View>
+              <View style={styles.scanInstructions}>
+                <MaterialCommunityIcons 
+                  name="barcode-scan" 
+                  size={24} 
+                  color={COLORS.white} 
+                  style={styles.scanIcon}
+                />
+                <Text style={styles.scanText}>Hold steady while scanning</Text>
+              </View>
+            </CameraView>
+          </View>
+        </View>
+
+        <View style={styles.recentScansContainer}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Recent Scans</Text>
+            <TouchableOpacity onPress={() => router.push("/history")}>
+              <Text style={styles.seeAllText}>See All</Text>
+            </TouchableOpacity>
+          </View>
+          
+          {recentScansData.length > 0 ? (
+            <View style={styles.recentScansList}>
+              {recentScansData.map(item => renderRecentScanItem(item))}
+            </View>
+          ) : (
+            <View style={styles.emptyScansContainer}>
+              <MaterialCommunityIcons 
+                name="history" 
+                size={80} 
+                color={COLORS.lightGray} 
+              />
+              <Text style={styles.emptyScansText}>No recent scans</Text>
+              <Text style={styles.emptyScansSubtext}>
+                Products you scan will appear here for quick access
+              </Text>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.spacer} />
+      </ScrollView>
+    );
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Ready to scan?</Text>
+        <Text style={styles.title}>Scan & Learn</Text>
         <Text style={styles.subtitle}>
-          Scan product barcodes to get personalized health insights
+          Get personalized health insights for any product
         </Text>
       </View>
 
-      <ScrollView 
-        style={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        >
-        <View style={styles.scanCardContainer}>
-          <View style={styles.scanCard}>
-            <Image 
-              source={{ uri: 'https://cdn-icons-png.flaticon.com/512/3395/3395538.png' }} 
-              style={styles.scanImage}
-              resizeMode="contain"
-            />
-            <Text style={styles.scanCardTitle}>Scan a Product</Text>
-            <Text style={styles.scanCardDescription}>
-              Get immediate health insights based on your profile
-            </Text>
-            <TouchableOpacity 
-              style={styles.scanButton}
-              onPress={navigateToScanner}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.scanButtonText}>Scan Now</Text>
-              <MaterialCommunityIcons name="barcode-scan" size={20} color={COLORS.white} />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={styles.profileSummaryContainer}>
-          <Text style={styles.sectionTitle}>Your Health Profile</Text>
-          
-          <View style={styles.profileSummaryCard}>
-            <View style={styles.profileInfo}>
-              <View style={styles.profileItem}>
-                <Text style={styles.profileLabel}>Age</Text>
-                <Text style={styles.profileValue}>{healthData.age || '-'}</Text>
-              </View>
-              <View style={styles.profileItem}>
-                <Text style={styles.profileLabel}>Weight</Text>
-                <Text style={styles.profileValue}>{healthData.weight ? `${healthData.weight} kg` : '-'}</Text>
-              </View>
-              <View style={styles.profileItem}>
-                <Text style={styles.profileLabel}>Height</Text>
-                <Text style={styles.profileValue}>{healthData.height ? `${healthData.height} cm` : '-'}</Text>
-              </View>
-            </View>
-
-            {/* Display health conditions if any */}
-            {(healthData.conditions.highBloodPressure ||
-              healthData.conditions.diabetes ||
-              healthData.conditions.heartDisease ||
-              healthData.conditions.kidneyDisease ||
-              healthData.conditions.pregnant ||
-              healthData.conditions.cancer ||
-              healthData.conditions.dietaryRestrictions.length > 0) && (
-              <View style={styles.conditionsContainer}>
-                <Text style={styles.conditionsTitle}>Health Considerations</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.conditionsScroll}>
-                  {healthData.conditions.highBloodPressure && (
-                    <View style={styles.conditionTag}>
-                      <Text style={styles.conditionText}>High Blood Pressure</Text>
-                    </View>
-                  )}
-                  {healthData.conditions.diabetes && (
-                    <View style={styles.conditionTag}>
-                      <Text style={styles.conditionText}>Diabetes</Text>
-                    </View>
-                  )}
-                  {healthData.conditions.heartDisease && (
-                    <View style={styles.conditionTag}>
-                      <Text style={styles.conditionText}>Heart Disease</Text>
-                    </View>
-                  )}
-                  {healthData.conditions.kidneyDisease && (
-                    <View style={styles.conditionTag}>
-                      <Text style={styles.conditionText}>Kidney Disease</Text>
-                    </View>
-                  )}
-                  {healthData.conditions.pregnant && (
-                    <View style={styles.conditionTag}>
-                      <Text style={styles.conditionText}>Pregnant</Text>
-                    </View>
-                  )}
-                  {healthData.conditions.cancer && (
-                    <View style={styles.conditionTag}>
-                      <Text style={styles.conditionText}>Cancer</Text>
-                    </View>
-                  )}
-                  {healthData.conditions.dietaryRestrictions.map((restriction, index) => (
-                    <View key={index} style={styles.conditionTag}>
-                      <Text style={styles.conditionText}>{restriction}</Text>
-                    </View>
-                  ))}
-                </ScrollView>
-              </View>
-            )}
-          </View>
-        </View>
-
-        <View style={styles.tipsContainer}>
-          <Text style={styles.sectionTitle}>Tips & Insights</Text>
-          <View style={styles.tipCard}>
-            <View style={styles.tipIconContainer}>
-              <Ionicons name="nutrition" size={24} color={COLORS.secondary} />
-            </View>
-            <View style={styles.tipContent}>
-              <Text style={styles.tipTitle}>Scan products before buying</Text>
-              <Text style={styles.tipDescription}>Get personalized health insights tailored to your health profile.</Text>
-            </View>
-          </View>
-          <View style={styles.tipCard}>
-            <View style={styles.tipIconContainer}>
-              <Ionicons name="water" size={24} color={COLORS.secondary} />
-            </View>
-            <View style={styles.tipContent}>
-              <Text style={styles.tipTitle}>Stay hydrated</Text>
-              <Text style={styles.tipDescription}>Drink water regularly throughout the day for better health.</Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.spacer} />
-      </ScrollView>
+      {/* Show different content based on state */}
+      {scannedData || product ? (
+        renderProductScreen()
+      ) : (
+        <>
+          {permission?.granted ? (
+            renderHomeContent()
+          ) : (
+            renderPermissionsScreen()
+          )}
+        </>
+      )}
     </View>
   );
 };
@@ -176,156 +397,333 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     opacity: 0.8,
   },
-  scanCardContainer: {
+  scannerContainer: {
     paddingHorizontal: SIZES.paddingLarge,
     marginTop: SIZES.marginLarge,
-    zIndex: 1,
   },
-  scanCard: {
-    backgroundColor: COLORS.white,
+  embeddedCameraContainer: {
+    height: 350,
     borderRadius: SIZES.borderRadiusMedium,
-    padding: SIZES.paddingLarge,
-    alignItems: 'center',
+    overflow: 'hidden',
     ...SHADOWS.medium,
   },
-  scanImage: {
-    width: 120,
-    height: 120,
-    marginBottom: SIZES.marginMedium,
-  },
-  scanCardTitle: {
-    ...FONTS.bold,
-    fontSize: SIZES.xLarge,
-    color: COLORS.text,
-    marginBottom: SIZES.marginSmall,
-    textAlign: 'center',
-  },
-  scanCardDescription: {
-    ...FONTS.regular,
-    fontSize: SIZES.medium,
-    color: COLORS.darkGray,
-    textAlign: 'center',
-    marginBottom: SIZES.marginLarge,
-  },
-  scanButton: {
-    backgroundColor: COLORS.secondary,
-    flexDirection: 'row',
-    paddingVertical: SIZES.paddingMedium,
-    paddingHorizontal: SIZES.paddingLarge,
-    borderRadius: SIZES.borderRadiusMedium,
-    alignItems: 'center',
+  camera: {
+    flex: 1,
     justifyContent: 'center',
-    width: '100%',
-    ...SHADOWS.small,
+    alignItems: 'center',
   },
-  scanButtonText: {
-    ...FONTS.bold,
-    fontSize: SIZES.medium,
-    color: COLORS.white,
+  scanFrame: {
+    width: 200,
+    height: 120,
+    borderWidth: 2,
+    borderColor: COLORS.secondary,
+    backgroundColor: 'transparent',
+    borderRadius: SIZES.borderRadiusSmall,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  scannerAnimation: {
+    position: 'absolute',
+    height: 2,
+    width: '100%',
+    backgroundColor: COLORS.secondary,
+    opacity: 0.7,
+    // In a real implementation, you'd animate this with Animated API
+  },
+  scanInstructions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    paddingVertical: SIZES.paddingSmall,
+    paddingHorizontal: SIZES.paddingMedium,
+    borderRadius: SIZES.borderRadiusMedium,
+    marginTop: SIZES.marginMedium,
+  },
+  scanIcon: {
     marginRight: SIZES.marginSmall,
   },
-  profileSummaryContainer: {
+  scanText: {
+    color: COLORS.white,
+    fontSize: SIZES.medium,
+    ...FONTS.medium,
+  },
+  recentScansContainer: {
     paddingHorizontal: SIZES.paddingLarge,
     marginTop: SIZES.marginLarge,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SIZES.marginMedium,
   },
   sectionTitle: {
     ...FONTS.bold,
     fontSize: SIZES.large,
     color: COLORS.text,
-    marginBottom: SIZES.marginMedium,
   },
-  profileSummaryCard: {
-    backgroundColor: COLORS.white,
-    borderRadius: SIZES.borderRadiusMedium,
-    padding: SIZES.paddingLarge,
-    ...SHADOWS.small,
-  },
-  profileInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: SIZES.marginLarge,
-  },
-  profileItem: {
-    alignItems: 'center',
-  },
-  profileLabel: {
+  seeAllText: {
     ...FONTS.medium,
     fontSize: SIZES.medium,
-    color: COLORS.darkGray,
-    marginBottom: SIZES.marginSmall / 2,
-  },
-  profileValue: {
-    ...FONTS.bold,
-    fontSize: SIZES.large,
-    color: COLORS.text,
-  },
-  conditionsContainer: {
-    marginTop: SIZES.marginSmall,
-  },
-  conditionsTitle: {
-    ...FONTS.medium,
-    fontSize: SIZES.medium,
-    color: COLORS.darkGray,
-    marginBottom: SIZES.marginSmall,
-  },
-  conditionsScroll: {
-    flexDirection: 'row',
-  },
-  conditionsList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  conditionTag: {
-    backgroundColor: COLORS.primary + '15', // 15% opacity
-    paddingVertical: SIZES.paddingSmall / 2,
-    paddingHorizontal: SIZES.paddingSmall,
-    borderRadius: SIZES.borderRadiusFull,
-    marginRight: SIZES.marginSmall,
-    marginBottom: SIZES.marginSmall,
-  },
-  conditionText: {
-    ...FONTS.medium,
-    fontSize: SIZES.small,
     color: COLORS.primary,
   },
-  tipsContainer: {
-    paddingHorizontal: SIZES.paddingLarge,
-    marginTop: SIZES.marginLarge,
-  },
-  tipCard: {
+  recentScansList: {
     backgroundColor: COLORS.white,
     borderRadius: SIZES.borderRadiusMedium,
     padding: SIZES.paddingMedium,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: SIZES.marginMedium,
     ...SHADOWS.small,
   },
-  tipIconContainer: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: COLORS.secondary + '15',
-    justifyContent: 'center',
+  recentScanItem: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginRight: SIZES.marginMedium,
+    paddingVertical: SIZES.paddingMedium,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.lightGray,
   },
-  tipContent: {
+  recentScanItem_lastChild: {
+    borderBottomWidth: 0,
+  },
+  recentScanImage: {
+    width: 40,
+    height: 40,
+    borderRadius: SIZES.borderRadiusSmall,
+    backgroundColor: COLORS.gray + '30',
+  },
+  recentScanInfo: {
     flex: 1,
+    marginLeft: SIZES.marginMedium,
   },
-  tipTitle: {
+  recentScanName: {
+    paddingVertical: SIZES.paddingSmall,
     ...FONTS.bold,
     fontSize: SIZES.medium,
     color: COLORS.text,
-    marginBottom: SIZES.marginSmall / 2,
   },
-  tipDescription: {
+  recentScanBrand: {
     ...FONTS.regular,
     fontSize: SIZES.small,
     color: COLORS.darkGray,
   },
+  recentScanScore: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: SIZES.marginMedium,
+  },
+  recentScanScoreText: {
+    ...FONTS.bold,
+    fontSize: SIZES.medium,
+  },
+  emptyScansContainer: {
+    backgroundColor: COLORS.white,
+    borderRadius: SIZES.borderRadiusMedium,
+    padding: SIZES.paddingLarge,
+    alignItems: 'center',
+    ...SHADOWS.small,
+    paddingVertical: SIZES.paddingLarge * 1.5,
+  },
+  emptyScansText: {
+    ...FONTS.bold,
+    fontSize: SIZES.large,
+    color: COLORS.text,
+    marginBottom: SIZES.marginSmall,
+  },
+  emptyScansSubtext: {
+    ...FONTS.regular,
+    fontSize: SIZES.medium,
+    color: COLORS.darkGray,
+    textAlign: 'center',
+  },
   spacer: {
     height: 100, // Space for the tab bar
+  },
+  
+  // Product result styles
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SIZES.paddingLarge,
+  },
+  loadingIndicator: {
+    backgroundColor: COLORS.white,
+    padding: SIZES.paddingLarge,
+    borderRadius: SIZES.borderRadiusMedium,
+    alignItems: 'center',
+    ...SHADOWS.medium,
+  },
+  loadingText: {
+    ...FONTS.medium,
+    fontSize: SIZES.medium,
+    color: COLORS.text,
+    marginTop: SIZES.marginMedium,
+  },
+  productContainer: {
+    flex: 1,
+    padding: SIZES.paddingLarge,
+  },
+  productCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: SIZES.borderRadiusMedium,
+    padding: SIZES.paddingLarge,
+    marginBottom: SIZES.marginMedium,
+    ...SHADOWS.medium,
+  },
+  productHeader: {
+    flexDirection: 'row',
+    marginBottom: SIZES.marginMedium,
+  },
+  productImage: {
+    width: 80,
+    height: 80,
+    borderRadius: SIZES.borderRadiusSmall,
+    backgroundColor: COLORS.gray,
+  },
+  productInfo: {
+    marginLeft: SIZES.marginMedium,
+    flex: 1,
+  },
+  productName: {
+    ...FONTS.bold,
+    fontSize: SIZES.large,
+    color: COLORS.text,
+    marginBottom: 2,
+  },
+  brandName: {
+    ...FONTS.regular,
+    fontSize: SIZES.medium,
+    color: COLORS.darkGray,
+    marginBottom: SIZES.marginSmall,
+  },
+  healthScoreContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  healthScoreLabel: {
+    ...FONTS.medium,
+    fontSize: SIZES.small,
+    color: COLORS.darkGray,
+    marginRight: SIZES.marginSmall,
+  },
+  healthScoreBadge: {
+    backgroundColor: COLORS.primary,
+    paddingVertical: 2,
+    paddingHorizontal: SIZES.paddingSmall,
+    borderRadius: SIZES.borderRadiusFull,
+  },
+  healthScoreValue: {
+    ...FONTS.bold,
+    fontSize: SIZES.small,
+    color: COLORS.white,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: COLORS.lightGray,
+    marginVertical: SIZES.marginMedium,
+  },
+  nutritionContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  nutritionItem: {
+    alignItems: 'center',
+    width: '18%',
+    marginBottom: SIZES.marginMedium,
+  },
+  nutritionValue: {
+    ...FONTS.bold,
+    fontSize: SIZES.medium,
+    color: COLORS.primary,
+    marginBottom: 4,
+  },
+  nutritionLabel: {
+    ...FONTS.regular,
+    fontSize: SIZES.xSmall,
+    color: COLORS.darkGray,
+    textAlign: 'center',
+  },
+  warningsContainer: {
+    marginBottom: SIZES.marginMedium,
+  },
+  warningItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SIZES.marginSmall,
+  },
+  warningText: {
+    ...FONTS.medium,
+    fontSize: SIZES.small,
+    color: COLORS.text,
+    marginLeft: SIZES.marginSmall,
+    flex: 1,
+  },
+  recommendationsContainer: {
+    marginBottom: SIZES.marginMedium,
+  },
+  recommendationItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SIZES.marginSmall,
+  },
+  recommendationText: {
+    ...FONTS.medium,
+    fontSize: SIZES.small,
+    color: COLORS.text,
+    marginLeft: SIZES.marginSmall,
+    flex: 1,
+  },
+  scanAgainButton: {
+    backgroundColor: COLORS.secondary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: SIZES.paddingMedium,
+    borderRadius: SIZES.borderRadiusMedium,
+    ...SHADOWS.medium,
+  },
+  scanAgainButtonText: {
+    ...FONTS.bold,
+    fontSize: SIZES.medium,
+    color: COLORS.white,
+    marginLeft: SIZES.marginSmall,
+  },
+  
+  // Permissions styles
+  permissionsContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SIZES.paddingLarge,
+  },
+  permissionsTitle: {
+    ...FONTS.bold,
+    fontSize: SIZES.xLarge,
+    color: COLORS.text,
+    marginBottom: SIZES.marginMedium,
+    textAlign: 'center',
+  },
+  permissionsText: {
+    ...FONTS.regular,
+    fontSize: SIZES.medium,
+    color: COLORS.darkGray,
+    marginBottom: SIZES.marginLarge,
+    textAlign: 'center',
+  },
+  permissionsButton: {
+    backgroundColor: COLORS.primary,
+    paddingVertical: SIZES.paddingMedium,
+    paddingHorizontal: SIZES.paddingLarge,
+    borderRadius: SIZES.borderRadiusMedium,
+    ...SHADOWS.small,
+  },
+  permissionsButtonText: {
+    ...FONTS.bold,
+    fontSize: SIZES.medium,
+    color: COLORS.white,
   },
 });
 
