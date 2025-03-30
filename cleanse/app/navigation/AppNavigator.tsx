@@ -128,8 +128,16 @@ const AppNavigator = () => {
     if (completedSurvey && !isNavigatingToCamera) {
       // If survey is completed, ensure user is in the main tabs section
       if (segments[0] !== '(tabs)') {
-        // Using replace ensures this doesn't add to history unnecessarily
-        router.replace('/(tabs)');
+        // Wrap navigation in setTimeout to ensure Root Layout is mounted
+        // This avoids the "Attempted to navigate before mounting the Root Layout" error
+        setTimeout(() => {
+          try {
+            // Using replace ensures this doesn't add to history unnecessarily
+            router.replace('/(tabs)');
+          } catch (error) {
+            console.error('Navigation error:', error);
+          }
+        }, 100);
       }
     }
     // Note: The conditional rendering below might still conflict with Expo Router's

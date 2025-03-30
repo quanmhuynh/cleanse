@@ -10,7 +10,7 @@ interface SurveyContainerProps {
 }
 
 const SurveyContainer = ({ onSurveyComplete }: SurveyContainerProps) => {
-  const { setCurrentSurveyStep, setCompletedSurvey, updateHealthData, healthData } = useUser();
+  const { setCurrentSurveyStep, setCompletedSurvey, updateHealthData, healthData, selectedProfileId } = useUser();
   const [step, setStep] = useState(1);
   const [preferences, setPreferences] = useState('');
   const [loading, setLoading] = useState(false);
@@ -25,6 +25,28 @@ const SurveyContainer = ({ onSurveyComplete }: SurveyContainerProps) => {
 
   const handleBack = () => {
     setStep(prevStep => prevStep - 1);
+  };
+
+  // Generate a unique email based on profile ID or random string
+  const generateUniqueEmail = () => {
+    let username = selectedProfileId || '';
+    
+    // If no profile ID, generate a random username
+    if (!username) {
+      username = `user_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    }
+    
+    // Make sure username doesn't already contain .com
+    if (!username.includes('.com')) {
+      username = `${username}.com`;
+    }
+    
+    // Ensure it's a proper email format
+    if (!username.includes('@')) {
+      username = `${username.replace('.com', '')}@example.com`;
+    }
+    
+    return username;
   };
 
   const submitUserData = () => {
@@ -52,7 +74,7 @@ const SurveyContainer = ({ onSurveyComplete }: SurveyContainerProps) => {
     
     // Format data according to the API requirements
     const userData = {
-      email: "user@example.com", // This would typically come from user authentication
+      email: generateUniqueEmail(), // Generate unique email
       height: healthData.height,
       weight: healthData.weight,
       age: healthData.age,
@@ -61,6 +83,8 @@ const SurveyContainer = ({ onSurveyComplete }: SurveyContainerProps) => {
       comorbidities: comorbidities,
       preferences: preferences // Use the preferences from state
     };
+
+    console.log('Submitting user data with email:', userData.email);
 
     // Send data to API
     fetch("http://localhost:8000/add_user", {
