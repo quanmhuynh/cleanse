@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SIZES.paddingLarge,
     paddingTop: SIZES.paddingLarge * 3,
     paddingBottom: SIZES.paddingLarge,
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.primary,
     borderBottomLeftRadius: 25,
     borderBottomRightRadius: 25,
     ...SHADOWS.medium,
@@ -265,13 +265,14 @@ const styles = StyleSheet.create({
   title: {
     ...FONTS.bold,
     fontSize: SIZES.xxxLarge,
-    color: COLORS.primary,
+    color: COLORS.white,
     marginBottom: SIZES.marginSmall,
   },
   subtitle: {
     ...FONTS.regular,
     fontSize: SIZES.medium,
-    color: COLORS.darkGray,
+    color: COLORS.white,
+    opacity: 0.8,
   },
   filterContainer: {
     flexDirection: 'row',
@@ -281,6 +282,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
     marginHorizontal: SIZES.marginLarge,
     marginTop: SIZES.marginLarge,
+    marginBottom: SIZES.marginSmall,
     borderRadius: SIZES.borderRadiusMedium,
     ...SHADOWS.small,
   },

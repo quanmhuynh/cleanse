@@ -16,9 +16,6 @@ const HomeScreen = () => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <Text style={styles.greeting}>Hello,</Text>
-        </View>
         <Text style={styles.title}>Ready to scan?</Text>
         <Text style={styles.subtitle}>
           Scan product barcodes to get personalized health insights
@@ -160,43 +157,24 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: SIZES.paddingLarge,
-    paddingTop: SIZES.paddingLarge * 2,
+    paddingTop: SIZES.paddingLarge * 3,
     paddingBottom: SIZES.paddingLarge,
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.primary,
     borderBottomLeftRadius: 25,
     borderBottomRightRadius: 25,
     ...SHADOWS.medium,
-    zIndex: 1,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SIZES.marginMedium,
-  },
-  greeting: {
-    ...FONTS.regular,
-    fontSize: SIZES.large,
-    color: COLORS.darkGray,
-
-  },
-  profileImageContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   title: {
     ...FONTS.bold,
     fontSize: SIZES.xxxLarge,
-    color: COLORS.primary,
+    color: COLORS.white,
     marginBottom: SIZES.marginSmall,
   },
   subtitle: {
     ...FONTS.regular,
     fontSize: SIZES.medium,
-    color: COLORS.darkGray,
+    color: COLORS.white,
+    opacity: 0.8,
   },
   scanCardContainer: {
     paddingHorizontal: SIZES.paddingLarge,

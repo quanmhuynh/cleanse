@@ -124,17 +124,10 @@ const ProfileScreen = () => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <Text style={styles.headerTitle}>Profile</Text>
-          <TouchableOpacity 
-            style={styles.editButton}
-            onPress={() => setEditMode(!editMode)}
-          >
-            <Text style={styles.editButtonText}>
-              {editMode ? 'Done' : 'Edit'}
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <Text style={styles.title}>Profile</Text>
+        <Text style={styles.subtitle}>
+          Manage your health profile and preferences
+        </Text>
       </View>
 
       <ScrollView 
@@ -455,17 +448,18 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 25,
     borderBottomRightRadius: 25,
     ...SHADOWS.medium,
-    zIndex: 1,
   },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  headerTitle: {
+  title: {
     ...FONTS.bold,
     fontSize: SIZES.xxxLarge,
     color: COLORS.white,
+    marginBottom: SIZES.marginSmall,
+  },
+  subtitle: {
+    ...FONTS.regular,
+    fontSize: SIZES.medium,
+    color: COLORS.white,
+    opacity: 0.8,
   },
   editButton: {
     backgroundColor: COLORS.white,

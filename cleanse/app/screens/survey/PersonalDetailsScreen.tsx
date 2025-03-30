@@ -10,7 +10,7 @@ import {
   Modal
 } from 'react-native';
 import { useUser } from '../../context/UserContext';
-import { COLORS, SIZES, FONTS } from '../../../constants/theme';
+import { COLORS, SIZES, FONTS, SHADOWS } from '../../../constants/theme';
 import TextInput from '../../components/TextInput';
 import Button from '../../components/Button';
 import ProgressSteps from '../../components/ProgressSteps';
@@ -265,17 +265,23 @@ const styles = StyleSheet.create({
   header: {
     marginTop: SIZES.marginLarge,
     marginBottom: SIZES.marginLarge,
+    paddingHorizontal: SIZES.paddingLarge,
+    paddingVertical: SIZES.paddingLarge,
+    backgroundColor: COLORS.primary,
+    borderRadius: 25,
+    ...SHADOWS.medium,
   },
   title: {
     ...FONTS.bold,
     fontSize: SIZES.xxxLarge,
-    color: COLORS.text,
+    color: COLORS.white,
     marginBottom: SIZES.marginSmall,
   },
   subtitle: {
     ...FONTS.regular,
     fontSize: SIZES.medium,
-    color: COLORS.darkGray,
+    color: COLORS.white,
+    opacity: 0.8,
   },
   form: {
     marginBottom: SIZES.marginLarge,

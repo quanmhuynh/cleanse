@@ -267,11 +267,7 @@ export default function CameraScreen() {
 
   return (
     <View style={styles.container}>
-      {scannedData ? (
-        // Show scanned data if available
-        renderProductScreen()
-      ) : (
-        // Show camera scanner if no data yet
+      {!scannedData ? (
         <View style={styles.cameraContainer}>
           <CameraView
             style={styles.camera}
@@ -284,15 +280,46 @@ export default function CameraScreen() {
               style={styles.backButton}
               onPress={goBack}
             >
-              <Text style={styles.backButtonText}>← Back</Text>
+              <Ionicons name="chevron-back" size={24} color={COLORS.white} />
             </TouchableOpacity>
             
+            <View style={styles.scanInfoCard}>
+              <Text style={styles.scanInfoTitle}>Product Scanner</Text>
+              <Text style={styles.scanInfoText}>
+                Align the barcode in the frame to scan product information
+              </Text>
+            </View>
+            
             <View style={styles.overlay}>
-              <View style={styles.scanFrame} />
-              <Text style={styles.scanText}>Align barcode within the frame</Text>
+              <View style={styles.scanFrame}>
+                <View style={styles.scannerAnimation} />
+              </View>
+              <View style={styles.scanInstructions}>
+                <MaterialCommunityIcons 
+                  name="barcode-scan" 
+                  size={24} 
+                  color={COLORS.white} 
+                  style={styles.scanIcon}
+                />
+                <Text style={styles.scanText}>Hold steady while scanning</Text>
+              </View>
+              
+              <View style={styles.scanTips}>
+                <Text style={styles.scanTipsTitle}>Scanning Tips:</Text>
+                <View style={styles.scanTipItem}>
+                  <Ionicons name="checkmark-circle" size={16} color={COLORS.success} />
+                  <Text style={styles.scanTipText}>Ensure good lighting</Text>
+                </View>
+                <View style={styles.scanTipItem}>
+                  <Ionicons name="checkmark-circle" size={16} color={COLORS.success} />
+                  <Text style={styles.scanTipText}>Keep barcode flat and visible</Text>
+                </View>
+              </View>
             </View>
           </CameraView>
         </View>
+      ) : (
+        renderProductScreen()
       )}
     </View>
   );
@@ -316,29 +343,66 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   scanFrame: {
-    width: 250,
-    height: 150,
-    borderWidth: 2,
-    borderColor: COLORS.white,
+    width: 280,
+    height: 180,
+    borderWidth: 3,
+    borderColor: COLORS.secondary,
     backgroundColor: 'transparent',
     borderRadius: SIZES.borderRadiusSmall,
-    marginBottom: SIZES.marginLarge,
-    // Add a subtle shadow to make it more visible
-    shadowColor: COLORS.white,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 5,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  scannerAnimation: {
+    position: 'absolute',
+    height: 3,
+    width: '100%',
+    backgroundColor: COLORS.secondary,
+    opacity: 0.7,
+    // In a real implementation, you'd animate this with Animated API
+  },
+  scanInstructions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    paddingVertical: SIZES.paddingSmall,
+    paddingHorizontal: SIZES.paddingMedium,
+    borderRadius: SIZES.borderRadiusMedium,
+    marginTop: SIZES.marginMedium,
+  },
+  scanIcon: {
+    marginRight: SIZES.marginSmall,
   },
   scanText: {
     color: COLORS.white,
     fontSize: SIZES.medium,
     ...FONTS.medium,
-    textAlign: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    padding: SIZES.paddingSmall,
-    borderRadius: SIZES.borderRadiusSmall,
-    overflow: 'hidden',
-    maxWidth: '80%',
+  },
+  scanTips: {
+    position: 'absolute',
+    bottom: 100,
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    borderRadius: SIZES.borderRadiusMedium,
+    padding: SIZES.paddingMedium,
+  },
+  scanTipsTitle: {
+    ...FONTS.bold,
+    fontSize: SIZES.medium,
+    color: COLORS.white,
+    marginBottom: SIZES.marginSmall,
+  },
+  scanTipItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: SIZES.marginSmall,
+  },
+  scanTipText: {
+    ...FONTS.regular,
+    fontSize: SIZES.small,
+    color: COLORS.white,
+    marginLeft: SIZES.marginSmall,
   },
   backButton: {
     position: 'absolute',
@@ -571,5 +635,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     width: '100%',
+  },
+  scanInfoCard: {
+    position: 'absolute',
+    top: 100,
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    borderRadius: SIZES.borderRadiusMedium,
+    padding: SIZES.paddingMedium,
+    zIndex: 5,
+  },
+  scanInfoTitle: {
+    ...FONTS.bold,
+    fontSize: SIZES.large,
+    color: COLORS.white,
+    marginBottom: SIZES.marginSmall,
+    textAlign: 'center',
+  },
+  scanInfoText: {
+    ...FONTS.regular,
+    fontSize: SIZES.small,
+    color: COLORS.white,
+    textAlign: 'center',
   },
 });
