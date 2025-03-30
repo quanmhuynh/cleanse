@@ -6,7 +6,7 @@ from datetime import datetime
 
 from image_and_name import scrape_image
 from database import DatabaseManager  # Ensure this module is in your project
-from llm_stuff import get_llm_response
+from llm_stuff import get_llm_response, get_food_recommendations, enrich_food_data
 from open_food_api import get_product_info
 
 # Create a single global instance of the DatabaseManager.
@@ -40,6 +40,12 @@ class UserModel(BaseModel):
 class HistoryInputModel(BaseModel):
     email: str
     upc: str
+
+
+# Model for recommendation requests
+class RecommendationRequestModel(BaseModel):
+    email: str
+    use_gemini: Optional[bool] = True
 
 
 @app.post("/add_user")
@@ -104,6 +110,7 @@ def add_history(history: HistoryInputModel):
                                 "score": entry['score'],
                                 "reasoning": entry['reasoning'],
                                 "image_url": entry['image_url'],
+                                "product_name": entry.get('product_name', "Unknown Product")
                             }
                     except Exception as e:
                         print(f"Error parsing date for existing entry: {e}")
@@ -112,6 +119,9 @@ def add_history(history: HistoryInputModel):
         # Retrieve food information using the provided UPC.
         food_info = get_product_info(history.upc)
         print(f"Retrieved food info: {food_info}")
+        
+        # Get product name from food info
+        product_name = food_info.get("product_name", "Unknown Product")
         
         # Retrieve user details from the database using the provided email.
         user_info = db_manager.get_user(history.email)
@@ -189,6 +199,7 @@ def add_history(history: HistoryInputModel):
                 reasoning=llm_response.reasoning,
                 image_url=image_url,
                 date=current_date,
+                product_name=product_name
             )
             print(f"History added successfully for {history.email}")
         except Exception as history_error:
@@ -200,6 +211,7 @@ def add_history(history: HistoryInputModel):
             "score": llm_response.score,
             "reasoning": llm_response.reasoning,
             "image_url": image_url,
+            "product_name": product_name
         }
         print(f"Returning result: {result}")
         return result
@@ -210,7 +222,8 @@ def add_history(history: HistoryInputModel):
         return {
             "score": 50,
             "reasoning": f"Error processing product: {str(e)}. Please try again.",
-            "image_url": "https://cdn-icons-png.flaticon.com/512/1828/1828843.png", 
+            "image_url": "https://cdn-icons-png.flaticon.com/512/1828/1828843.png",
+            "product_name": "Unknown Product"
         }
 
 
@@ -256,6 +269,51 @@ def get_user(email: str):
         return None
     print(f"User found: {user}")
     return user
+
+
+@app.post("/get_recommendations")
+def get_recommendations(request: RecommendationRequestModel):
+    """
+    Generate food recommendations based on all scanned items in the database.
+    Returns the top 3 healthiest foods for the user with explanations,
+    regardless of which user originally scanned them.
+    """
+    print(f"Generating recommendations for user: {request.email}")
+    try:
+        # Get user information
+        user_info = db_manager.get_user(request.email)
+        if not user_info:
+            print(f"User not found: {request.email}")
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Get ALL history items from the database in a single query
+        all_history = db_manager.get_all_history()
+        
+        # If we don't have enough items, return a specific error
+        if not all_history or len(all_history) < 2:
+            print(f"Not enough history found in the entire database. Found: {len(all_history) if all_history else 0} items")
+            raise HTTPException(status_code=404, detail="Not enough food items in the database. Please scan at least 2 items total.")
+        
+        print(f"Found {len(all_history)} total history items in the database")
+        
+        # Add product names and other missing data to history items
+        enriched_history = enrich_food_data(all_history)
+        
+        # Get recommendations using the specified model
+        recommendations = get_food_recommendations(
+            user_info, 
+            enriched_history,
+            use_gemini=request.use_gemini
+        )
+        
+        print(f"Generated {len(recommendations.recommendations)} recommendations for user: {request.email}")
+        
+        return {
+            "recommendations": recommendations.recommendations
+        }
+    except Exception as e:
+        print(f"ERROR in get_recommendations: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error generating recommendations: {str(e)}")
 
 
 if __name__ == "__main__":

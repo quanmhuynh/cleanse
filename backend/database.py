@@ -43,10 +43,30 @@ class DatabaseManager:
                 reasoning TEXT,
                 image_url TEXT,
                 date TEXT,
+                product_name TEXT,
                 FOREIGN KEY (email) REFERENCES Users(email)
             );
             """
         )
+        
+        # Check if product_name column already exists in History table
+        cursor.execute("PRAGMA table_info(History)")
+        columns = [column[1] for column in cursor.fetchall()]
+        
+        # Add product_name column if it doesn't exist
+        if "product_name" not in columns:
+            try:
+                cursor.execute(
+                    """
+                    ALTER TABLE History
+                    ADD COLUMN product_name TEXT;
+                    """
+                )
+                print("Added product_name column to History table")
+            except Exception as e:
+                print(f"Error adding product_name column: {e}")
+                # Continue even if the column already exists or there's another issue
+        
         self.conn.commit()
 
     def add_user(
@@ -145,6 +165,7 @@ class DatabaseManager:
         reasoning: str,
         image_url: str,
         date: str = None,
+        product_name: str = None,
     ):
         """
         Add a new history entry to the History table.
@@ -157,18 +178,23 @@ class DatabaseManager:
             image_url: URL of the related image.
             date: (Optional) The date of the entry in ISO format.
                   If not provided, the current datetime is used.
+            product_name: (Optional) Name of the product.
         """
         if date is None:
             date = datetime.now().isoformat()
         cursor = self.conn.cursor()
-        cursor.execute(
-            """
-            INSERT INTO History (email, upc, score, reasoning, image_url, date)
-            VALUES (?, ?, ?, ?, ?, ?);
-            """,
-            (email, upc, score, reasoning, image_url, date),
-        )
-        self.conn.commit()
+        try:
+            cursor.execute(
+                """
+                INSERT INTO History (email, upc, score, reasoning, image_url, date, product_name)
+                VALUES (?, ?, ?, ?, ?, ?, ?);
+                """,
+                (email, upc, score, reasoning, image_url, date, product_name),
+            )
+            self.conn.commit()
+        except Exception as e:
+            print(f"Error adding history: {e}")
+            raise e
 
     def get_user_history(self, email: str):
         """
@@ -188,6 +214,23 @@ class DatabaseManager:
             ORDER BY date DESC;
             """,
             (email,),
+        )
+        rows = cursor.fetchall()
+        return [dict(row) for row in rows]
+
+    def get_all_history(self):
+        """
+        Retrieve all history entries from all users.
+
+        Returns:
+            A list of dictionaries containing all history entries.
+        """
+        cursor = self.conn.cursor()
+        cursor.execute(
+            """
+            SELECT * FROM History
+            ORDER BY date DESC;
+            """
         )
         rows = cursor.fetchall()
         return [dict(row) for row in rows]
