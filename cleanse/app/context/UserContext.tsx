@@ -1,11 +1,12 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
-// import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// Define interface for health data
 export interface UserHealthData {
-  // Step 1: Basic Characteristics
+  // Step 1: Characteristics
   age: number | null;
-  weight: number | null; // kg
-  height: number | null; // cm
+  weight: number | null; // in kg
+  height: number | null; // in cm
   gender: 'male' | 'female' | 'other' | null;
   
   // Step 2: Health conditions
@@ -25,9 +26,12 @@ export interface UserHealthData {
 }
 
 interface UserContextType {
+  // Profile selection
   selectedProfileId: string | null;
   selectProfile: (profileId: string) => Promise<void>;
   hasSelectedProfile: boolean;
+
+  // Survey and user data
   completedSurvey: boolean;
   setCompletedSurvey: (completed: boolean) => void;
   healthData: UserHealthData;
@@ -35,13 +39,13 @@ interface UserContextType {
   currentSurveyStep: number;
   setCurrentSurveyStep: (step: number) => void;
   
-  // If you still want "profile" logic
+  // New profile management functions
   createNewProfile: (username: string) => Promise<string>;
   loadUserData: () => Promise<void>;
   saveUserData: () => Promise<void>;
 }
 
-// Example initial data
+// Create initial health data
 const initialHealthData: UserHealthData = {
   age: null,
   weight: null,
@@ -60,6 +64,7 @@ const initialHealthData: UserHealthData = {
   additionalPreferences: '',
 };
 
+// Create context with default values
 const UserContext = createContext<UserContextType>({
   selectedProfileId: null,
   selectProfile: async () => {},
@@ -75,6 +80,7 @@ const UserContext = createContext<UserContextType>({
   saveUserData: async () => {},
 });
 
+// Provider component that wraps app
 export function UserProvider({ children }: { children: ReactNode }) {
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   const [hasSelectedProfile, setHasSelectedProfile] = useState(false);
@@ -82,133 +88,158 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [healthData, setHealthData] = useState<UserHealthData>(initialHealthData);
   const [currentSurveyStep, setCurrentSurveyStep] = useState(1);
 
-  // ----- UPDATING HEALTH DATA -----
+  // Function to update health data
   const updateHealthData = (data: Partial<UserHealthData>) => {
-    setHealthData(prev => {
-      const updated = {
-        ...prev,
+    setHealthData(prevData => {
+      const updatedData = {
+        ...prevData,
         ...data,
+        // Handle nested objects like conditions
         conditions: {
-          ...prev.conditions,
-          ...(data.conditions || {}),
-        },
+          ...prevData.conditions,
+          ...(data.conditions || {})
+        }
       };
-      return updated;
+      
+      // Save the updated data to storage
+      saveUserData();
+      
+      return updatedData;
     });
   };
 
-  // ----- SELECT PROFILE -----
+  // Select a profile and load its data
   const selectProfile = async (profileId: string) => {
-    setSelectedProfileId(profileId);
-    // If you still want to load from server or local storage, call loadUserData
-    // await loadUserData(profileId);
-    setHasSelectedProfile(true);
-  };
-
-  // ----- CREATE NEW PROFILE -----
-  const createNewProfile = async (username: string): Promise<string> => {
-    // If you want to store the profile list on the server or locally, you can do so here.
-    // This example just returns a random profileId to keep the logic consistent
-    const newProfileId = `profile_${Date.now()}`;
-    console.log('Created new profile for user:', username, 'with ID:', newProfileId);
-    return newProfileId;
-  };
-
-  // ----- LOAD USER DATA (OPTIONAL) -----
-  const loadUserData = async (profileId?: string) => {
-    // If you want to fetch existing data from the server, do a GET request here
-    // e.g., fetch(`http://YOUR_SERVER_IP:8000/users/${profileId}`)
-    // Then update state accordingly.
-    console.log('loadUserData called. Implement server GET if needed.');
-  };
-
-  // ----- SAVE USER DATA TO SERVER (IMPORTANT) -----
-  const saveUserData = async () => {
     try {
-      // Map your current state -> the shape required by FastAPI’s UserModel
-      // For example, if your server expects:
-      //   { email, height, weight, age, physical_activity, gender, comorbidities, preferences }
-      // You need to decide how to get 'email' or 'physical_activity' from your app state.
-      // Let's do an example mapping:
-
-      const userToAdd = {
-        email: 'some_email@example.com',  // Or retrieve from some additional state field
-        height: healthData.height ?? 0,
-        weight: healthData.weight ?? 0,
-        age: healthData.age ?? 0,
-        physical_activity: 'light',      // Hard-coded example. Could come from a new field
-        gender: healthData.gender ?? 'other',
-        comorbidities: {
-          // Perhaps you store them as booleans but your server expects an array or dictionary
-          highBloodPressure: healthData.conditions.highBloodPressure,
-          diabetes: healthData.conditions.diabetes,
-          heartDisease: healthData.conditions.heartDisease,
-          kidneyDisease: healthData.conditions.kidneyDisease,
-          pregnant: healthData.conditions.pregnant,
-          cancer: healthData.conditions.cancer,
-          dietaryRestrictions: healthData.conditions.dietaryRestrictions,
-          otherConditions: healthData.conditions.otherConditions,
-        },
-        preferences: healthData.additionalPreferences,
-      };
-
-      const response = await fetch('http://127.0.0.1:8000/add_user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(userToAdd),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Server error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log('User added successfully:', data);
-
+      setSelectedProfileId(profileId);
+      await loadUserData(profileId);
+      setHasSelectedProfile(true);
     } catch (error) {
-      console.error('Error saving user data to server:', error);
+      console.error('Error selecting profile:', error);
     }
   };
 
-  // Whenever certain fields change, you could optionally auto-save:
+  // Load user data from storage
+  const loadUserData = async (profileId?: string) => {
+    try {
+      const idToUse = profileId || selectedProfileId;
+      if (!idToUse) return;
+
+      const userDataJson = await AsyncStorage.getItem(`userData_${idToUse}`);
+      if (userDataJson) {
+        const userData = JSON.parse(userDataJson);
+        
+        // Set state based on loaded data
+        if (userData.completedSurvey !== undefined) {
+          setCompletedSurvey(userData.completedSurvey);
+        }
+        
+        if (userData.healthData) {
+          setHealthData(userData.healthData);
+        }
+        
+        if (userData.currentSurveyStep) {
+          setCurrentSurveyStep(userData.currentSurveyStep);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading user data:', error);
+    }
+  };
+
+  // Save user data to storage
+  const saveUserData = async () => {
+    try {
+      if (!selectedProfileId) return;
+      
+      const userData = {
+        completedSurvey,
+        healthData,
+        currentSurveyStep,
+      };
+      
+      await AsyncStorage.setItem(
+        `userData_${selectedProfileId}`, 
+        JSON.stringify(userData)
+      );
+    } catch (error) {
+      console.error('Error saving user data:', error);
+    }
+  };
+
+  // Create a new profile
+  const createNewProfile = async (username: string): Promise<string> => {
+    try {
+      // Get existing profiles
+      const profileListJson = await AsyncStorage.getItem('profileList');
+      const profileList = profileListJson ? JSON.parse(profileListJson) : [];
+      
+      // Create new profile
+      const newProfileId = `profile_${Date.now()}`;
+      const newProfile = {
+        id: newProfileId,
+        username,
+        createdAt: new Date().toISOString(),
+      };
+      
+      // Add to list and save
+      profileList.push(newProfile);
+      await AsyncStorage.setItem('profileList', JSON.stringify(profileList));
+      
+      // Create empty user data for this profile
+      await AsyncStorage.setItem(
+        `userData_${newProfileId}`, 
+        JSON.stringify({
+          completedSurvey: false,
+          healthData: initialHealthData,
+          currentSurveyStep: 1,
+        })
+      );
+      
+      return newProfileId;
+    } catch (error) {
+      console.error('Error creating new profile:', error);
+      throw error;
+    }
+  };
+
+  // Save data whenever relevant state changes
   useEffect(() => {
     if (selectedProfileId) {
-      // Uncomment if you want auto-save to run:
-      // saveUserData();
+      saveUserData();
     }
   }, [completedSurvey, healthData, currentSurveyStep]);
 
-  // Just to keep naming consistent
+  // Override setCompletedSurvey to also save data
   const setCompletedSurveyWithSave = (value: boolean) => {
     setCompletedSurvey(value);
-    // Optionally call saveUserData() here
+    // Data will be saved via the useEffect
   };
 
   return (
-    <UserContext.Provider
-      value={{
-        selectedProfileId,
-        selectProfile,
-        hasSelectedProfile,
-        completedSurvey,
-        setCompletedSurvey: setCompletedSurveyWithSave,
-        healthData,
-        updateHealthData,
-        currentSurveyStep,
-        setCurrentSurveyStep,
-        createNewProfile,
-        loadUserData,
-        saveUserData,
-      }}
-    >
+    <UserContext.Provider value={{
+      selectedProfileId,
+      selectProfile,
+      hasSelectedProfile,
+      completedSurvey,
+      setCompletedSurvey: setCompletedSurveyWithSave,
+      healthData,
+      updateHealthData,
+      currentSurveyStep,
+      setCurrentSurveyStep,
+      createNewProfile,
+      loadUserData,
+      saveUserData,
+    }}>
       {children}
     </UserContext.Provider>
   );
 }
 
-// Custom hook for easy access
+// Custom hook to use the user context
 export function useUser() {
   return useContext(UserContext);
 }
 
-export default UserProvider;
+// Add default export
+export default UserProvider; 
