@@ -4,6 +4,7 @@ import PersonalDetailsScreen from './PersonalDetailsScreen';
 import HealthConditionsScreen from './HealthConditionsScreen';
 import PreferencesScreen from './PreferencesScreen';
 import { Alert } from 'react-native';
+import { api, API_URL } from '../../utils/api';
 
 interface SurveyContainerProps {
   onSurveyComplete: () => void;
@@ -84,34 +85,34 @@ const SurveyContainer = ({ onSurveyComplete }: SurveyContainerProps) => {
       preferences: preferences // Use the preferences from state
     };
 
-    console.log('Submitting user data with email:', userData.email);
-
-    // Send data to API
-    fetch("http://localhost:8000/add_user", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(userData)
-    })
-    .then(response => {
-      if (!response.ok) {
-        return response.json().then(data => {
-          throw new Error(data.detail || "Failed to save user data");
-        });
-      }
-      return response.json();
-    })
-    .then(data => {
-      setLoading(false);
-      setCompletedSurvey(true);
-      onSurveyComplete();
-    })
-    .catch(error => {
-      setLoading(false);
-      Alert.alert("Error", error.message || "Failed to save your data. Please try again.");
-      console.error("API Error:", error);
-    });
+    console.log('Submitting user data to API');
+    
+    // Use the API utility instead of direct fetch
+    api.post('add_user', userData)
+      .then(data => {
+        console.log('Success:', data);
+        setLoading(false);
+        setCompletedSurvey(true);
+        onSurveyComplete();
+      })
+      .catch(error => {
+        console.log('Full error:', error);
+        setLoading(false);
+        
+        if (error.message.includes('Network request failed')) {
+          // Special handling for network errors on mobile
+          Alert.alert(
+            "Connection Error", 
+            "Could not connect to the server. Make sure:\n\n" +
+            "1. Your backend server is running\n" +
+            "2. Your phone and computer are on the same network\n" +
+            `3. The server is accessible at ${API_URL}`
+          );
+        } else {
+          Alert.alert("Error", error.message || "Failed to save your data. Please try again.");
+        }
+        console.error("API Error:", error);
+      });
   };
 
   const handleComplete = () => {
