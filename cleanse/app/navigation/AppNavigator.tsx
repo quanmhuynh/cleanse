@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { View } from 'react-native';
 import { BottomTabBar, createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -12,7 +12,6 @@ import HomeScreen from '../screens/HomeScreen';
 import HistoryScreen from '../screens/HistoryScreen';
 import RecommendationsScreen from '../screens/RecommendationsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
-import { useEffect } from 'react';
 
 const Tab = createBottomTabNavigator();
 
@@ -122,39 +121,50 @@ const AppNavigator = () => {
 
   // Effect to handle navigation based on app state
   useEffect(() => {
-    if (completedSurvey) {
-      // If survey is completed, navigate to tabs
+    // Check if the last segment corresponds to the camera route name
+    const isNavigatingToCamera = segments[segments.length - 1] === 'camera';
+
+    // Only redirect to tabs if the survey is completed AND we are not trying to open the camera modal
+    if (completedSurvey && !isNavigatingToCamera) {
+      // If survey is completed, ensure user is in the main tabs section
       if (segments[0] !== '(tabs)') {
+        // Using replace ensures this doesn't add to history unnecessarily
         router.replace('/(tabs)');
       }
     }
-  }, [completedSurvey, segments]);
+    // Note: The conditional rendering below might still conflict with Expo Router's
+    // declarative nature. Consider using redirects to dedicated routes
+    // (e.g., /profile-selection, /survey) managed by the Stack navigator
+    // for better stability, instead of returning different components here.
+  }, [completedSurvey, segments, router]); // Add router to dependency array
 
   // If user hasn't selected a profile, show profile selection
   if (!hasSelectedProfile) {
     return (
-      <ProfileSelectionScreen 
+      <ProfileSelectionScreen
         onProfileSelect={(profileId) => selectProfile(profileId)}
       />
     );
   }
-  
+
   // If user hasn't completed the survey, show the survey
   if (!completedSurvey) {
     return (
-      <SurveyContainer 
+      <SurveyContainer
         onSurveyComplete={() => {
-          // The effect above will handle the navigation
-        }} 
+          // The user context state update will trigger the useEffect above
+          // which should handle navigation.
+        }}
       />
     );
   }
 
-  // For completed users, let the router handle the navigation to tabs
+  // For completed users, render the main Stack navigator
+  // The useEffect above handles redirecting to '(tabs)' if necessary.
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen 
+      <Stack.Screen
         name="camera"
         options={{
           headerShown: true,
@@ -164,6 +174,10 @@ const AppNavigator = () => {
           presentation: 'modal',
         }}
       />
+      {/* Consider adding screens for profile selection and survey here
+          if you refactor to use redirects instead of conditional returns */}
+      {/* <Stack.Screen name="profile-selection" component={ProfileSelectionScreen} /> */}
+      {/* <Stack.Screen name="survey" component={SurveyContainer} /> */}
     </Stack>
   );
 };
