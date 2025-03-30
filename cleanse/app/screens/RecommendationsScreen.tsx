@@ -106,24 +106,6 @@ const RecommendationsScreen = () => {
     return mockRecommendedData;
   };
 
-  const renderCategoryItem = ({ item }: { item: RecommendationCategory }) => (
-    <TouchableOpacity
-      style={[
-        styles.categoryButton,
-        selectedCategory === item.id && styles.selectedCategoryButton
-      ]}
-      onPress={() => setSelectedCategory(item.id)}
-    >
-      <Text
-        style={[
-          styles.categoryText,
-          selectedCategory === item.id && styles.selectedCategoryText
-        ]}
-      >
-        {item.label}
-      </Text>
-    </TouchableOpacity>
-  );
 
   const renderRecommendationItem = ({ item }: { item: RecommendedProduct }) => (
     <TouchableOpacity style={styles.recommendationCard} activeOpacity={0.7}>
@@ -173,17 +155,7 @@ const RecommendationsScreen = () => {
         </Text>
       </View>
 
-      {/* Categories row */}
-      <View style={styles.categoriesContainer}>
-        <FlatList
-          data={categories}
-          renderItem={renderCategoryItem}
-          keyExtractor={item => item.id}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoriesList}
-        />
-      </View>
+   
 
       {/* Personalized message based on health data */}
       <View style={styles.personalizedMessageContainer}>
