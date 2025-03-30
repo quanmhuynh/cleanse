@@ -4,6 +4,7 @@ import { BlurView } from 'expo-blur';
 import { View } from 'react-native'; 
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, SHADOWS } from '../../constants/theme';
+import SurveyContainer from '../screens/survey/SurveyContainer';
 
 export default function TabsLayout() {
   return (

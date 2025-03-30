@@ -6,10 +6,13 @@ import SurveyContainer from './screens/survey/SurveyContainer';
 import { COLORS } from '../constants/theme';
 
 function AppContent() {
-  const { completedSurvey } = useUser();
+  const { completedSurvey, setCompletedSurvey } = useUser();
 
   if (!completedSurvey) {
-    return <SurveyContainer onSurveyComplete={() => {}} />;
+    return <SurveyContainer onSurveyComplete={() => {
+      // This will trigger a re-render that shows the tabs
+      setCompletedSurvey(true);
+    }} />;
   }
 
   return (
