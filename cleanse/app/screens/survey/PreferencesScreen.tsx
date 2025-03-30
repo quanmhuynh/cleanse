@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { 
   View, 
   Text, 
   StyleSheet, 
   ScrollView, 
   KeyboardAvoidingView, 
-  Platform
+  Platform,
+  ActivityIndicator
 } from 'react-native';
 import { useUser } from '../../context/UserContext';
 import { COLORS, SIZES, FONTS } from '../../../constants/theme';
@@ -13,45 +14,23 @@ import Button from '../../components/Button';
 import ProgressSteps from '../../components/ProgressSteps';
 import TextInput from '../../components/TextInput';
 
+interface PreferencesScreenProps {
+  onComplete: () => void;
+  onBack: () => void;
+  preferences: string;
+  setPreferences: (preferences: string) => void;
+  loading?: boolean;
+}
+
 const PreferencesScreen = ({ 
   onComplete, 
-  onBack 
-}: { 
-  onComplete: () => void, 
-  onBack: () => void 
-}) => {
-  const { healthData, updateHealthData, currentSurveyStep, setCompletedSurvey } = useUser();
-  const [preferences, setPreferences] = useState(healthData.additionalPreferences || '');
+  onBack,
+  preferences,
+  setPreferences,
+  loading = false
+}: PreferencesScreenProps) => {
+  const { currentSurveyStep } = useUser();
 
-  const handleComplete = async () => {
-    updateHealthData({
-      additionalPreferences: preferences,
-    });
-  
-    try {
-      console.log(healthData)
-      const response = await fetch("http://localhost:8000/add_user", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(healthData)
-      });
-  
-      const result = await response.json();
-  
-      if (!response.ok) {
-        console.error("Server error:", result.detail);
-        return;
-      }
-  
-      setCompletedSurvey(true);
-      onComplete();
-    } catch (error) {
-      console.error("Network error:", error);
-    }
-  };
-  
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -99,13 +78,21 @@ const PreferencesScreen = ({
             onPress={onBack}
             variant="outline"
             style={styles.backButton}
+            disabled={loading}
           />
           <Button
-            title="Complete"
-            onPress={handleComplete}
+            title={loading ? "Saving..." : "Complete"}
+            onPress={onComplete}
             style={styles.completeButton}
+            disabled={loading}
           />
         </View>
+        
+        {loading && (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+          </View>
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -167,6 +154,10 @@ const styles = StyleSheet.create({
     marginLeft: SIZES.marginSmall,
     backgroundColor: COLORS.secondary,
   },
+  loadingContainer: {
+    marginTop: SIZES.marginLarge,
+    alignItems: 'center',
+  }
 });
 
 export default PreferencesScreen; 
