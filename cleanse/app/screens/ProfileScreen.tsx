@@ -122,7 +122,7 @@ const ProfileScreen = () => {
   );
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <Text style={styles.headerTitle}>Profile</Text>
@@ -137,230 +137,237 @@ const ProfileScreen = () => {
         </View>
       </View>
 
-      {/* Profile Info Card */}
-      <View style={styles.profileCardContainer}>
-        <View style={styles.profileIconContainer}>
-          <Ionicons name="person" size={60} color={COLORS.primary} />
+      <ScrollView 
+        style={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        >
+        {/* Profile Info Card */}
+        <View style={styles.profileCardContainer}>
+          <View style={styles.profileIconContainer}>
+            <Ionicons name="person" size={60} color={COLORS.primary} />
+          </View>
+          
+          <View style={styles.profileDetailsContainer}>
+            <View style={styles.profileSection}>
+              <Text style={styles.sectionTitle}>Personal Information</Text>
+              
+              <View style={styles.profileRow}>
+                <View style={styles.profileField}>
+                  <Text style={styles.fieldLabel}>Age</Text>
+                  <Text style={styles.fieldValue}>{healthData.age || 'Not set'}</Text>
+                </View>
+                {editMode && (
+                  <TouchableOpacity 
+                    style={styles.fieldEditButton}
+                    onPress={() => handleEditField('age', healthData.age)}
+                  >
+                    <MaterialCommunityIcons name="pencil" size={18} color={COLORS.primary} />
+                  </TouchableOpacity>
+                )}
+              </View>
+              
+              <View style={styles.profileRow}>
+                <View style={styles.profileField}>
+                  <Text style={styles.fieldLabel}>Weight</Text>
+                  <Text style={styles.fieldValue}>
+                    {healthData.weight ? `${healthData.weight} kg` : 'Not set'}
+                  </Text>
+                </View>
+                {editMode && (
+                  <TouchableOpacity 
+                    style={styles.fieldEditButton}
+                    onPress={() => handleEditField('weight', healthData.weight)}
+                  >
+                    <MaterialCommunityIcons name="pencil" size={18} color={COLORS.primary} />
+                  </TouchableOpacity>
+                )}
+              </View>
+              
+              <View style={styles.profileRow}>
+                <View style={styles.profileField}>
+                  <Text style={styles.fieldLabel}>Height</Text>
+                  <Text style={styles.fieldValue}>
+                    {healthData.height ? `${healthData.height} cm` : 'Not set'}
+                  </Text>
+                </View>
+                {editMode && (
+                  <TouchableOpacity 
+                    style={styles.fieldEditButton}
+                    onPress={() => handleEditField('height', healthData.height)}
+                  >
+                    <MaterialCommunityIcons name="pencil" size={18} color={COLORS.primary} />
+                  </TouchableOpacity>
+                )}
+              </View>
+              
+              <View style={styles.profileRow}>
+                <View style={styles.profileField}>
+                  <Text style={styles.fieldLabel}>Gender</Text>
+                  <Text style={styles.fieldValue}>
+                    {healthData.gender ? healthData.gender.charAt(0).toUpperCase() + healthData.gender.slice(1) : 'Not set'}
+                  </Text>
+                </View>
+                {editMode && (
+                  <TouchableOpacity 
+                    style={styles.fieldEditButton}
+                    onPress={() => handleEditField('gender', healthData.gender)}
+                  >
+                    <MaterialCommunityIcons name="pencil" size={18} color={COLORS.primary} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+            
+            <View style={styles.profileSection}>
+              <Text style={styles.sectionTitle}>Health Conditions</Text>
+              
+              {editMode ? (
+                <>
+                  <View style={styles.conditionToggleRow}>
+                    <Text style={styles.conditionToggleLabel}>High Blood Pressure</Text>
+                    <Switch
+                      trackColor={{ false: COLORS.lightGray, true: `${COLORS.primary}50` }}
+                      thumbColor={healthData.conditions.highBloodPressure ? COLORS.primary : COLORS.mediumGray}
+                      ios_backgroundColor={COLORS.lightGray}
+                      onValueChange={(value) => 
+                        updateHealthData({ 
+                          conditions: { 
+                            ...healthData.conditions, 
+                            highBloodPressure: value 
+                          } 
+                        })
+                      }
+                      value={healthData.conditions.highBloodPressure}
+                    />
+                  </View>
+                  
+                  <View style={styles.conditionToggleRow}>
+                    <Text style={styles.conditionToggleLabel}>Diabetes</Text>
+                    <Switch
+                      trackColor={{ false: COLORS.lightGray, true: `${COLORS.primary}50` }}
+                      thumbColor={healthData.conditions.diabetes ? COLORS.primary : COLORS.mediumGray}
+                      ios_backgroundColor={COLORS.lightGray}
+                      onValueChange={(value) => 
+                        updateHealthData({ 
+                          conditions: { 
+                            ...healthData.conditions, 
+                            diabetes: value 
+                          } 
+                        })
+                      }
+                      value={healthData.conditions.diabetes}
+                    />
+                  </View>
+                  
+                  <View style={styles.conditionToggleRow}>
+                    <Text style={styles.conditionToggleLabel}>Heart Disease</Text>
+                    <Switch
+                      trackColor={{ false: COLORS.lightGray, true: `${COLORS.primary}50` }}
+                      thumbColor={healthData.conditions.heartDisease ? COLORS.primary : COLORS.mediumGray}
+                      ios_backgroundColor={COLORS.lightGray}
+                      onValueChange={(value) => 
+                        updateHealthData({ 
+                          conditions: { 
+                            ...healthData.conditions, 
+                            heartDisease: value 
+                          } 
+                        })
+                      }
+                      value={healthData.conditions.heartDisease}
+                    />
+                  </View>
+                </>
+              ) : (
+                <View style={styles.conditionsDisplayContainer}>
+                  {healthData.conditions.highBloodPressure || 
+                   healthData.conditions.diabetes || 
+                   healthData.conditions.heartDisease || 
+                   healthData.conditions.kidneyDisease ||
+                   healthData.conditions.pregnant ||
+                   healthData.conditions.cancer ||
+                   healthData.conditions.dietaryRestrictions.length > 0 ? (
+                    <View style={styles.conditionsList}>
+                      {healthData.conditions.highBloodPressure && (
+                        <View style={styles.conditionTag}>
+                          <Text style={styles.conditionText}>High Blood Pressure</Text>
+                        </View>
+                      )}
+                      {healthData.conditions.diabetes && (
+                        <View style={styles.conditionTag}>
+                          <Text style={styles.conditionText}>Diabetes</Text>
+                        </View>
+                      )}
+                      {healthData.conditions.heartDisease && (
+                        <View style={styles.conditionTag}>
+                          <Text style={styles.conditionText}>Heart Disease</Text>
+                        </View>
+                      )}
+                      {healthData.conditions.kidneyDisease && (
+                        <View style={styles.conditionTag}>
+                          <Text style={styles.conditionText}>Kidney Disease</Text>
+                        </View>
+                      )}
+                      {healthData.conditions.pregnant && (
+                        <View style={styles.conditionTag}>
+                          <Text style={styles.conditionText}>Pregnant</Text>
+                        </View>
+                      )}
+                      {healthData.conditions.cancer && (
+                        <View style={styles.conditionTag}>
+                          <Text style={styles.conditionText}>Cancer</Text>
+                        </View>
+                      )}
+                      {healthData.conditions.dietaryRestrictions.map((restriction, index) => (
+                        <View key={index} style={styles.conditionTag}>
+                          <Text style={styles.conditionText}>{restriction}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  ) : (
+                    <Text style={styles.noConditionsText}>No health conditions specified</Text>
+                  )}
+                </View>
+              )}
+            </View>
+          </View>
         </View>
-        
-        <View style={styles.profileDetailsContainer}>
-          <View style={styles.profileSection}>
-            <Text style={styles.sectionTitle}>Personal Information</Text>
-            
-            <View style={styles.profileRow}>
-              <View style={styles.profileField}>
-                <Text style={styles.fieldLabel}>Age</Text>
-                <Text style={styles.fieldValue}>{healthData.age || 'Not set'}</Text>
-              </View>
-              {editMode && (
-                <TouchableOpacity 
-                  style={styles.fieldEditButton}
-                  onPress={() => handleEditField('age', healthData.age)}
-                >
-                  <MaterialCommunityIcons name="pencil" size={18} color={COLORS.primary} />
-                </TouchableOpacity>
-              )}
+
+        {/* Stats Card */}
+        <View style={styles.statsCardContainer}>
+          <Text style={styles.statsCardTitle}>Your Scan Statistics</Text>
+          
+          <View style={styles.statsOverview}>
+            <View style={styles.statOverviewItem}>
+              <Text style={styles.statOverviewValue}>{mockStatistics.totalScans}</Text>
+              <Text style={styles.statOverviewLabel}>Products Scanned</Text>
             </View>
-            
-            <View style={styles.profileRow}>
-              <View style={styles.profileField}>
-                <Text style={styles.fieldLabel}>Weight</Text>
-                <Text style={styles.fieldValue}>
-                  {healthData.weight ? `${healthData.weight} kg` : 'Not set'}
-                </Text>
-              </View>
-              {editMode && (
-                <TouchableOpacity 
-                  style={styles.fieldEditButton}
-                  onPress={() => handleEditField('weight', healthData.weight)}
-                >
-                  <MaterialCommunityIcons name="pencil" size={18} color={COLORS.primary} />
-                </TouchableOpacity>
-              )}
-            </View>
-            
-            <View style={styles.profileRow}>
-              <View style={styles.profileField}>
-                <Text style={styles.fieldLabel}>Height</Text>
-                <Text style={styles.fieldValue}>
-                  {healthData.height ? `${healthData.height} cm` : 'Not set'}
-                </Text>
-              </View>
-              {editMode && (
-                <TouchableOpacity 
-                  style={styles.fieldEditButton}
-                  onPress={() => handleEditField('height', healthData.height)}
-                >
-                  <MaterialCommunityIcons name="pencil" size={18} color={COLORS.primary} />
-                </TouchableOpacity>
-              )}
-            </View>
-            
-            <View style={styles.profileRow}>
-              <View style={styles.profileField}>
-                <Text style={styles.fieldLabel}>Gender</Text>
-                <Text style={styles.fieldValue}>
-                  {healthData.gender ? healthData.gender.charAt(0).toUpperCase() + healthData.gender.slice(1) : 'Not set'}
-                </Text>
-              </View>
-              {editMode && (
-                <TouchableOpacity 
-                  style={styles.fieldEditButton}
-                  onPress={() => handleEditField('gender', healthData.gender)}
-                >
-                  <MaterialCommunityIcons name="pencil" size={18} color={COLORS.primary} />
-                </TouchableOpacity>
-              )}
+            <View style={styles.statOverviewDivider} />
+            <View style={styles.statOverviewItem}>
+              <Text style={styles.statOverviewValue}>{mockStatistics.averageHealthScore}</Text>
+              <Text style={styles.statOverviewLabel}>Avg. Health Score</Text>
             </View>
           </View>
           
-          <View style={styles.profileSection}>
-            <Text style={styles.sectionTitle}>Health Conditions</Text>
-            
-            {editMode ? (
-              <>
-                <View style={styles.conditionToggleRow}>
-                  <Text style={styles.conditionToggleLabel}>High Blood Pressure</Text>
-                  <Switch
-                    trackColor={{ false: COLORS.lightGray, true: `${COLORS.primary}50` }}
-                    thumbColor={healthData.conditions.highBloodPressure ? COLORS.primary : COLORS.mediumGray}
-                    ios_backgroundColor={COLORS.lightGray}
-                    onValueChange={(value) => 
-                      updateHealthData({ 
-                        conditions: { 
-                          ...healthData.conditions, 
-                          highBloodPressure: value 
-                        } 
-                      })
-                    }
-                    value={healthData.conditions.highBloodPressure}
-                  />
-                </View>
-                
-                <View style={styles.conditionToggleRow}>
-                  <Text style={styles.conditionToggleLabel}>Diabetes</Text>
-                  <Switch
-                    trackColor={{ false: COLORS.lightGray, true: `${COLORS.primary}50` }}
-                    thumbColor={healthData.conditions.diabetes ? COLORS.primary : COLORS.mediumGray}
-                    ios_backgroundColor={COLORS.lightGray}
-                    onValueChange={(value) => 
-                      updateHealthData({ 
-                        conditions: { 
-                          ...healthData.conditions, 
-                          diabetes: value 
-                        } 
-                      })
-                    }
-                    value={healthData.conditions.diabetes}
-                  />
-                </View>
-                
-                <View style={styles.conditionToggleRow}>
-                  <Text style={styles.conditionToggleLabel}>Heart Disease</Text>
-                  <Switch
-                    trackColor={{ false: COLORS.lightGray, true: `${COLORS.primary}50` }}
-                    thumbColor={healthData.conditions.heartDisease ? COLORS.primary : COLORS.mediumGray}
-                    ios_backgroundColor={COLORS.lightGray}
-                    onValueChange={(value) => 
-                      updateHealthData({ 
-                        conditions: { 
-                          ...healthData.conditions, 
-                          heartDisease: value 
-                        } 
-                      })
-                    }
-                    value={healthData.conditions.heartDisease}
-                  />
-                </View>
-              </>
-            ) : (
-              <View style={styles.conditionsDisplayContainer}>
-                {healthData.conditions.highBloodPressure || 
-                 healthData.conditions.diabetes || 
-                 healthData.conditions.heartDisease || 
-                 healthData.conditions.kidneyDisease ||
-                 healthData.conditions.pregnant ||
-                 healthData.conditions.cancer ||
-                 healthData.conditions.dietaryRestrictions.length > 0 ? (
-                  <View style={styles.conditionsList}>
-                    {healthData.conditions.highBloodPressure && (
-                      <View style={styles.conditionTag}>
-                        <Text style={styles.conditionText}>High Blood Pressure</Text>
-                      </View>
-                    )}
-                    {healthData.conditions.diabetes && (
-                      <View style={styles.conditionTag}>
-                        <Text style={styles.conditionText}>Diabetes</Text>
-                      </View>
-                    )}
-                    {healthData.conditions.heartDisease && (
-                      <View style={styles.conditionTag}>
-                        <Text style={styles.conditionText}>Heart Disease</Text>
-                      </View>
-                    )}
-                    {healthData.conditions.kidneyDisease && (
-                      <View style={styles.conditionTag}>
-                        <Text style={styles.conditionText}>Kidney Disease</Text>
-                      </View>
-                    )}
-                    {healthData.conditions.pregnant && (
-                      <View style={styles.conditionTag}>
-                        <Text style={styles.conditionText}>Pregnant</Text>
-                      </View>
-                    )}
-                    {healthData.conditions.cancer && (
-                      <View style={styles.conditionTag}>
-                        <Text style={styles.conditionText}>Cancer</Text>
-                      </View>
-                    )}
-                    {healthData.conditions.dietaryRestrictions.map((restriction, index) => (
-                      <View key={index} style={styles.conditionTag}>
-                        <Text style={styles.conditionText}>{restriction}</Text>
-                      </View>
-                    ))}
-                  </View>
-                ) : (
-                  <Text style={styles.noConditionsText}>No health conditions specified</Text>
-                )}
-              </View>
-            )}
+          <Text style={styles.statsSubtitle}>Nutrition Averages</Text>
+          <View style={styles.nutritionStatsContainer}>
+            {renderNutritionStat('Sugar', mockStatistics.nutritionAverages.sugar)}
+            {renderNutritionStat('Sodium', mockStatistics.nutritionAverages.sodium)}
+            {renderNutritionStat('Fat', mockStatistics.nutritionAverages.fat)}
+            {renderNutritionStat('Protein', mockStatistics.nutritionAverages.protein)}
+          </View>
+          
+          <Text style={styles.statsSubtitle}>Most Scanned Categories</Text>
+          <View style={styles.categoriesContainer}>
+            {mockStatistics.mostScannedCategories.map((category, index) => (
+              <React.Fragment key={index}>
+                {renderCategoryBar(category)}
+              </React.Fragment>
+            ))}
           </View>
         </View>
-      </View>
 
-      {/* Stats Card */}
-      <View style={styles.statsCardContainer}>
-        <Text style={styles.statsCardTitle}>Your Scan Statistics</Text>
-        
-        <View style={styles.statsOverview}>
-          <View style={styles.statOverviewItem}>
-            <Text style={styles.statOverviewValue}>{mockStatistics.totalScans}</Text>
-            <Text style={styles.statOverviewLabel}>Products Scanned</Text>
-          </View>
-          <View style={styles.statOverviewDivider} />
-          <View style={styles.statOverviewItem}>
-            <Text style={styles.statOverviewValue}>{mockStatistics.averageHealthScore}</Text>
-            <Text style={styles.statOverviewLabel}>Avg. Health Score</Text>
-          </View>
-        </View>
-        
-        <Text style={styles.statsSubtitle}>Nutrition Averages</Text>
-        <View style={styles.nutritionStatsContainer}>
-          {renderNutritionStat('Sugar', mockStatistics.nutritionAverages.sugar)}
-          {renderNutritionStat('Sodium', mockStatistics.nutritionAverages.sodium)}
-          {renderNutritionStat('Fat', mockStatistics.nutritionAverages.fat)}
-          {renderNutritionStat('Protein', mockStatistics.nutritionAverages.protein)}
-        </View>
-        
-        <Text style={styles.statsSubtitle}>Most Scanned Categories</Text>
-        <View style={styles.categoriesContainer}>
-          {mockStatistics.mostScannedCategories.map((category, index) => (
-            <React.Fragment key={index}>
-              {renderCategoryBar(category)}
-            </React.Fragment>
-          ))}
-        </View>
-      </View>
+        <View style={styles.spacer} />
+      </ScrollView>
 
       {/* Edit Field Modal */}
       <Modal
@@ -428,9 +435,7 @@ const ProfileScreen = () => {
           </View>
         </View>
       </Modal>
-
-      <View style={styles.spacer} />
-    </ScrollView>
+    </View>
   );
 };
 
@@ -438,6 +443,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.gray,
+  },
+  scrollContent: {
+    flex: 1,
   },
   header: {
     paddingHorizontal: SIZES.paddingLarge,
@@ -447,6 +455,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 25,
     borderBottomRightRadius: 25,
     ...SHADOWS.medium,
+    zIndex: 1,
   },
   headerTop: {
     flexDirection: 'row',

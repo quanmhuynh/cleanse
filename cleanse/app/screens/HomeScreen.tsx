@@ -14,13 +14,10 @@ const HomeScreen = () => {
   };
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <Text style={styles.greeting}>Hello,</Text>
-          <View style={styles.profileImageContainer}>
-            <Ionicons name="person-circle" size={40} color={COLORS.primary} />
-          </View>
         </View>
         <Text style={styles.title}>Ready to scan?</Text>
         <Text style={styles.subtitle}>
@@ -28,123 +25,128 @@ const HomeScreen = () => {
         </Text>
       </View>
 
-      <View style={styles.scanCardContainer}>
-        <View style={styles.scanCard}>
-          <Image 
-            source={{ uri: 'https://cdn-icons-png.flaticon.com/512/3395/3395538.png' }} 
-            style={styles.scanImage}
-            resizeMode="contain"
-          />
-          <Text style={styles.scanCardTitle}>Scan a Product</Text>
-          <Text style={styles.scanCardDescription}>
-            Get immediate health insights based on your profile
-          </Text>
-          <TouchableOpacity 
-            style={styles.scanButton}
-            onPress={navigateToScanner}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.scanButtonText}>Scan Now</Text>
-            <MaterialCommunityIcons name="barcode-scan" size={20} color={COLORS.white} />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <View style={styles.profileSummaryContainer}>
-        <Text style={styles.sectionTitle}>Your Health Profile</Text>
-        
-        <View style={styles.profileSummaryCard}>
-          <View style={styles.profileInfo}>
-            <View style={styles.profileItem}>
-              <Text style={styles.profileLabel}>Age</Text>
-              <Text style={styles.profileValue}>{healthData.age || '-'}</Text>
-            </View>
-            <View style={styles.profileItem}>
-              <Text style={styles.profileLabel}>Weight</Text>
-              <Text style={styles.profileValue}>{healthData.weight ? `${healthData.weight} kg` : '-'}</Text>
-            </View>
-            <View style={styles.profileItem}>
-              <Text style={styles.profileLabel}>Height</Text>
-              <Text style={styles.profileValue}>{healthData.height ? `${healthData.height} cm` : '-'}</Text>
-            </View>
-          </View>
-
-          {/* Display health conditions if any */}
-          {(healthData.conditions.highBloodPressure ||
-            healthData.conditions.diabetes ||
-            healthData.conditions.heartDisease ||
-            healthData.conditions.kidneyDisease ||
-            healthData.conditions.pregnant ||
-            healthData.conditions.cancer ||
-            healthData.conditions.dietaryRestrictions.length > 0) && (
-            <View style={styles.conditionsContainer}>
-              <Text style={styles.conditionsTitle}>Health Considerations</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.conditionsScroll}>
-                {healthData.conditions.highBloodPressure && (
-                  <View style={styles.conditionTag}>
-                    <Text style={styles.conditionText}>High Blood Pressure</Text>
-                  </View>
-                )}
-                {healthData.conditions.diabetes && (
-                  <View style={styles.conditionTag}>
-                    <Text style={styles.conditionText}>Diabetes</Text>
-                  </View>
-                )}
-                {healthData.conditions.heartDisease && (
-                  <View style={styles.conditionTag}>
-                    <Text style={styles.conditionText}>Heart Disease</Text>
-                  </View>
-                )}
-                {healthData.conditions.kidneyDisease && (
-                  <View style={styles.conditionTag}>
-                    <Text style={styles.conditionText}>Kidney Disease</Text>
-                  </View>
-                )}
-                {healthData.conditions.pregnant && (
-                  <View style={styles.conditionTag}>
-                    <Text style={styles.conditionText}>Pregnant</Text>
-                  </View>
-                )}
-                {healthData.conditions.cancer && (
-                  <View style={styles.conditionTag}>
-                    <Text style={styles.conditionText}>Cancer</Text>
-                  </View>
-                )}
-                {healthData.conditions.dietaryRestrictions.map((restriction, index) => (
-                  <View key={index} style={styles.conditionTag}>
-                    <Text style={styles.conditionText}>{restriction}</Text>
-                  </View>
-                ))}
-              </ScrollView>
-            </View>
-          )}
-        </View>
-      </View>
-
-      <View style={styles.tipsContainer}>
-        <Text style={styles.sectionTitle}>Tips & Insights</Text>
-        <View style={styles.tipCard}>
-          <View style={styles.tipIconContainer}>
-            <Ionicons name="nutrition" size={24} color={COLORS.secondary} />
-          </View>
-          <View style={styles.tipContent}>
-            <Text style={styles.tipTitle}>Scan products before buying</Text>
-            <Text style={styles.tipDescription}>Get personalized health insights tailored to your health profile.</Text>
+      <ScrollView 
+        style={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        >
+        <View style={styles.scanCardContainer}>
+          <View style={styles.scanCard}>
+            <Image 
+              source={{ uri: 'https://cdn-icons-png.flaticon.com/512/3395/3395538.png' }} 
+              style={styles.scanImage}
+              resizeMode="contain"
+            />
+            <Text style={styles.scanCardTitle}>Scan a Product</Text>
+            <Text style={styles.scanCardDescription}>
+              Get immediate health insights based on your profile
+            </Text>
+            <TouchableOpacity 
+              style={styles.scanButton}
+              onPress={navigateToScanner}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.scanButtonText}>Scan Now</Text>
+              <MaterialCommunityIcons name="barcode-scan" size={20} color={COLORS.white} />
+            </TouchableOpacity>
           </View>
         </View>
-        <View style={styles.tipCard}>
-          <View style={styles.tipIconContainer}>
-            <Ionicons name="water" size={24} color={COLORS.secondary} />
-          </View>
-          <View style={styles.tipContent}>
-            <Text style={styles.tipTitle}>Stay hydrated</Text>
-            <Text style={styles.tipDescription}>Drink water regularly throughout the day for better health.</Text>
+
+        <View style={styles.profileSummaryContainer}>
+          <Text style={styles.sectionTitle}>Your Health Profile</Text>
+          
+          <View style={styles.profileSummaryCard}>
+            <View style={styles.profileInfo}>
+              <View style={styles.profileItem}>
+                <Text style={styles.profileLabel}>Age</Text>
+                <Text style={styles.profileValue}>{healthData.age || '-'}</Text>
+              </View>
+              <View style={styles.profileItem}>
+                <Text style={styles.profileLabel}>Weight</Text>
+                <Text style={styles.profileValue}>{healthData.weight ? `${healthData.weight} kg` : '-'}</Text>
+              </View>
+              <View style={styles.profileItem}>
+                <Text style={styles.profileLabel}>Height</Text>
+                <Text style={styles.profileValue}>{healthData.height ? `${healthData.height} cm` : '-'}</Text>
+              </View>
+            </View>
+
+            {/* Display health conditions if any */}
+            {(healthData.conditions.highBloodPressure ||
+              healthData.conditions.diabetes ||
+              healthData.conditions.heartDisease ||
+              healthData.conditions.kidneyDisease ||
+              healthData.conditions.pregnant ||
+              healthData.conditions.cancer ||
+              healthData.conditions.dietaryRestrictions.length > 0) && (
+              <View style={styles.conditionsContainer}>
+                <Text style={styles.conditionsTitle}>Health Considerations</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.conditionsScroll}>
+                  {healthData.conditions.highBloodPressure && (
+                    <View style={styles.conditionTag}>
+                      <Text style={styles.conditionText}>High Blood Pressure</Text>
+                    </View>
+                  )}
+                  {healthData.conditions.diabetes && (
+                    <View style={styles.conditionTag}>
+                      <Text style={styles.conditionText}>Diabetes</Text>
+                    </View>
+                  )}
+                  {healthData.conditions.heartDisease && (
+                    <View style={styles.conditionTag}>
+                      <Text style={styles.conditionText}>Heart Disease</Text>
+                    </View>
+                  )}
+                  {healthData.conditions.kidneyDisease && (
+                    <View style={styles.conditionTag}>
+                      <Text style={styles.conditionText}>Kidney Disease</Text>
+                    </View>
+                  )}
+                  {healthData.conditions.pregnant && (
+                    <View style={styles.conditionTag}>
+                      <Text style={styles.conditionText}>Pregnant</Text>
+                    </View>
+                  )}
+                  {healthData.conditions.cancer && (
+                    <View style={styles.conditionTag}>
+                      <Text style={styles.conditionText}>Cancer</Text>
+                    </View>
+                  )}
+                  {healthData.conditions.dietaryRestrictions.map((restriction, index) => (
+                    <View key={index} style={styles.conditionTag}>
+                      <Text style={styles.conditionText}>{restriction}</Text>
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
           </View>
         </View>
-      </View>
 
-      <View style={styles.spacer} />
-    </ScrollView>
+        <View style={styles.tipsContainer}>
+          <Text style={styles.sectionTitle}>Tips & Insights</Text>
+          <View style={styles.tipCard}>
+            <View style={styles.tipIconContainer}>
+              <Ionicons name="nutrition" size={24} color={COLORS.secondary} />
+            </View>
+            <View style={styles.tipContent}>
+              <Text style={styles.tipTitle}>Scan products before buying</Text>
+              <Text style={styles.tipDescription}>Get personalized health insights tailored to your health profile.</Text>
+            </View>
+          </View>
+          <View style={styles.tipCard}>
+            <View style={styles.tipIconContainer}>
+              <Ionicons name="water" size={24} color={COLORS.secondary} />
+            </View>
+            <View style={styles.tipContent}>
+              <Text style={styles.tipTitle}>Stay hydrated</Text>
+              <Text style={styles.tipDescription}>Drink water regularly throughout the day for better health.</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.spacer} />
+      </ScrollView>
+    </View>
   );
 };
 
@@ -153,14 +155,18 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.gray,
   },
+  scrollContent: {
+    flex: 1,
+  },
   header: {
     paddingHorizontal: SIZES.paddingLarge,
-    paddingTop: SIZES.paddingLarge * 3,
+    paddingTop: SIZES.paddingLarge * 2,
     paddingBottom: SIZES.paddingLarge,
     backgroundColor: COLORS.white,
     borderBottomLeftRadius: 25,
     borderBottomRightRadius: 25,
     ...SHADOWS.medium,
+    zIndex: 1,
   },
   headerTop: {
     flexDirection: 'row',

@@ -14,14 +14,13 @@ import ProfileScreen from '../screens/ProfileScreen';
 
 const Tab = createBottomTabNavigator();
 
-const TabBarComponent = (props) => {
+const TabBarComponent = (props: any) => {
   return (
     <View style={{ 
       position: 'absolute', 
       bottom: 0, 
       left: 0, 
       right: 0, 
-      elevation: 0,
       ...SHADOWS.medium 
     }}>
       <BlurView
@@ -133,7 +132,7 @@ const AppNavigator = () => {
             headerShown: false,
           }}
         >
-          <Stack.Screen name="(tabs)" component={TabNavigator} />
+          <Stack.Screen name="(tabs)" options={{}} />
           <Stack.Screen 
             name="camera"
             options={{

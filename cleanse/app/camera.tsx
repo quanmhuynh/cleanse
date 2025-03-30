@@ -280,16 +280,16 @@ export default function CameraScreen() {
               barcodeTypes: ["qr", "ean13", "ean8", "code128", "code39", "code93", "upc_e", "upc_a"],
             }}
           >
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={goBack}
+            >
+              <Text style={styles.backButtonText}>← Back</Text>
+            </TouchableOpacity>
+            
             <View style={styles.overlay}>
-              <View style={styles.scanFrame}>
-                <View style={styles.scanCorner} />
-                <View style={[styles.scanCorner, { top: 0, right: 0, transform: [{ rotate: '90deg' }] }]} />
-                <View style={[styles.scanCorner, { bottom: 0, right: 0, transform: [{ rotate: '180deg' }] }]} />
-                <View style={[styles.scanCorner, { bottom: 0, left: 0, transform: [{ rotate: '270deg' }] }]} />
-              </View>
-              <View style={styles.scanTextContainer}>
-                <Text style={styles.scanText}>Align barcode within the frame</Text>
-              </View>
+              <View style={styles.scanFrame} />
+              <Text style={styles.scanText}>Align barcode within the frame</Text>
             </View>
           </CameraView>
         </View>
@@ -311,39 +311,49 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
   },
   scanFrame: {
     width: 250,
     height: 150,
-    position: 'relative',
+    borderWidth: 2,
+    borderColor: COLORS.white,
+    backgroundColor: 'transparent',
     borderRadius: SIZES.borderRadiusSmall,
     marginBottom: SIZES.marginLarge,
-  },
-  scanCorner: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: 20,
-    height: 20,
-    borderColor: COLORS.white,
-    borderTopWidth: 3,
-    borderLeftWidth: 3,
-    borderTopLeftRadius: SIZES.borderRadiusSmall,
-  },
-  scanTextContainer: {
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    paddingVertical: SIZES.paddingSmall,
-    paddingHorizontal: SIZES.paddingMedium,
-    borderRadius: SIZES.borderRadiusMedium,
+    // Add a subtle shadow to make it more visible
+    shadowColor: COLORS.white,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 5,
   },
   scanText: {
     color: COLORS.white,
     fontSize: SIZES.medium,
     ...FONTS.medium,
     textAlign: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    padding: SIZES.paddingSmall,
+    borderRadius: SIZES.borderRadiusSmall,
+    overflow: 'hidden',
+    maxWidth: '80%',
+  },
+  backButton: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    paddingVertical: SIZES.paddingSmall,
+    paddingHorizontal: SIZES.paddingMedium,
+    borderRadius: SIZES.borderRadiusMedium,
+    zIndex: 10,
+  },
+  backButtonText: {
+    color: COLORS.white,
+    fontSize: SIZES.medium,
+    ...FONTS.medium,
   },
   loadingContainer: {
     flex: 1,
