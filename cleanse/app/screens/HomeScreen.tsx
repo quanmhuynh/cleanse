@@ -31,6 +31,7 @@ interface HistoryItem {
   imageUrl: string;
   healthScore: number;
   nutritionInfo: NutritionInfo;
+  upc?: string; // Add UPC to identify duplicates
 }
 
 interface ProductData {
@@ -69,7 +70,7 @@ const getScoreColor = (score: number): string => {
 
 const HomeScreen = () => {
   const router = useRouter();
-  const { selectedProfileId, hasSelectedProfile } = useUser();
+  const { currentUser: selectedProfileId, hasSelectedUser: hasSelectedProfile } = useUser();
   // Camera permissions state
   const [permission, requestPermission] = useCameraPermissions();
   // State to store scanned barcode info
@@ -101,43 +102,71 @@ const HomeScreen = () => {
 
   // Function to fetch user history from API
   const fetchUserHistory = async () => {
-    if (!selectedProfileId) return;
+    if (!selectedProfileId) {
+      console.log('Cannot fetch history: No profile selected');
+      setRecentScans([]);
+      setHistoryLoading(false);
+      return;
+    }
+    
+    // Don't fetch if we're already loading to prevent duplicate calls
+    if (historyLoading) {
+      console.log('Already fetching history, skipping duplicate call');
+      return;
+    }
     
     setHistoryLoading(true);
     try {
       console.log(`Fetching history for user: ${selectedProfileId}`);
       const data = await api.get<any[]>(`get_history?email=${selectedProfileId}`);
       
-      if (Array.isArray(data) && data.length > 0) {
+      // Ensure we have a valid array (even if empty)
+      const historyData = Array.isArray(data) ? data : [];
+      console.log(`Received ${historyData.length} history items`);
+      
+      if (historyData.length > 0) {
         // Transform API data to our app's format
-        const formattedData: HistoryItem[] = data.map((item, index) => ({
+        const formattedData: HistoryItem[] = historyData.map((item, index) => ({
           id: index.toString(),
           productName: `Product #${item.upc}`,
           brand: 'Unknown Brand',
           dateScanned: new Date(item.date).toLocaleDateString(),
-          imageUrl: item.image_url,
-          healthScore: item.score,
+          imageUrl: item.image_url || 'https://cdn-icons-png.flaticon.com/512/3724/3724788.png',
+          healthScore: item.score || 0,
           nutritionInfo: {
-            sugar: getSugarLevel(item.score),
-            sodium: getSodiumLevel(item.score),
-            fat: getFatLevel(item.score),
-          }
+            sugar: getSugarLevel(item.score || 0),
+            sodium: getSodiumLevel(item.score || 0),
+            fat: getFatLevel(item.score || 0),
+          },
+          upc: item.upc // Add UPC to help identify duplicates
         }));
         
+        // Remove duplicates based on UPC code
+        const uniqueItems = formattedData.reduce<HistoryItem[]>((acc, current) => {
+          const x = acc.find(item => item.upc === current.upc);
+          if (!x) {
+            return acc.concat(current);
+          }
+          return acc;
+        }, []);
+        
         // Sort by date (newest first) and take the most recent 5
-        const sortedData = formattedData.sort((a, b) => 
-          new Date(b.dateScanned).getTime() - new Date(a.dateScanned).getTime()
-        );
+        const sortedData = uniqueItems.sort((a, b) => {
+          const dateA = new Date(a.dateScanned).getTime();
+          const dateB = new Date(b.dateScanned).getTime();
+          return isNaN(dateB) || isNaN(dateA) ? 0 : dateB - dateA;
+        });
         
         const recentItems = sortedData.slice(0, 5);
         setRecentScans(recentItems);
-        console.log(`Loaded ${recentItems.length} recent scans`);
+        console.log(`Loaded ${recentItems.length} recent scans after deduplication`);
       } else {
         console.log('No history found for this user');
         setRecentScans([]);
       }
     } catch (error) {
       console.error('Error fetching user history:', error);
+      // Ensure we set empty array on error
       setRecentScans([]);
     } finally {
       setHistoryLoading(false);
@@ -236,8 +265,11 @@ const HomeScreen = () => {
         
         // Fetch updated history after successful scan (with a slight delay to ensure DB updates)
         setTimeout(() => {
-          fetchUserHistory();
-        }, 500);
+          // Only fetch once after a successful scan
+          if (!historyLoading) {
+            fetchUserHistory();
+          }
+        }, 1000); // Increased to 1 second to ensure server has time to process
         
         setLoading(false);
       })

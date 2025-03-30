@@ -9,27 +9,19 @@ import {
   Modal,
   ActivityIndicator
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, SIZES, FONTS, SHADOWS } from '../../constants/theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { api } from '../utils/api';
 import { useUser } from '../context/UserContext';
 
-interface Profile {
-  id: string;
-  username: string;
-  createdAt: string;
-}
-
 interface ProfileSelectionScreenProps {
-  onProfileSelect: (profileId: string) => void;
+  onProfileSelect?: (profileId: string) => void; // Optional for backward compatibility
 }
 
 const ProfileSelectionScreen = ({ onProfileSelect }: ProfileSelectionScreenProps) => {
-  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const { userList, loadUserList, selectUser, createNewUser } = useUser();
   const [loading, setLoading] = useState(true);
-  const [newProfileModalVisible, setNewProfileModalVisible] = useState(false);
-  const [newUsername, setNewUsername] = useState('');
+  const [newUserModalVisible, setNewUserModalVisible] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -39,12 +31,7 @@ const ProfileSelectionScreen = ({ onProfileSelect }: ProfileSelectionScreenProps
   const loadProfiles = async () => {
     try {
       setLoading(true);
-      // Get the list of profile IDs
-      const profileListJson = await AsyncStorage.getItem('profileList');
-      if (profileListJson) {
-        const profileList = JSON.parse(profileListJson) as Profile[];
-        setProfiles(profileList);
-      }
+      await loadUserList();
     } catch (error) {
       console.error('Error loading profiles:', error);
     } finally {
@@ -53,108 +40,63 @@ const ProfileSelectionScreen = ({ onProfileSelect }: ProfileSelectionScreenProps
   };
 
   const createNewProfile = async () => {
-    if (!newUsername.trim()) {
-      setError('Please enter a username');
+    if (!newEmail.trim()) {
+      setError('Please enter an email');
       return;
     }
 
-    // Check if username already exists
-    if (profiles.some(profile => profile.username.toLowerCase() === newUsername.toLowerCase())) {
-      setError('Username already exists');
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newEmail)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
+    // Check if email already exists
+    if (userList.includes(newEmail)) {
+      setError('Email already exists');
       return;
     }
 
     try {
-      const newProfile: Profile = {
-        id: `profile_${Date.now()}`,
-        username: newUsername,
-        createdAt: new Date().toISOString(),
-      };
-
-      console.log(`Creating new profile: ${newProfile.id} (${newUsername})`);
-
-      // Create basic health data for this profile
-      const emptyHealthData = {
-        age: null,
-        weight: null,
-        height: null,
-        gender: null,
-        conditions: {
-          highBloodPressure: false,
-          diabetes: false,
-          heartDisease: false,
-          kidneyDisease: false,
-          pregnant: false,
-          cancer: false,
-          dietaryRestrictions: [],
-          otherConditions: [],
-        },
-        additionalPreferences: '',
-      };
-
-      // Create an empty health data object for this profile
-      await AsyncStorage.setItem(
-        `userData_${newProfile.id}`, 
-        JSON.stringify({
-          completedSurvey: false,
-          healthData: emptyHealthData,
-          currentSurveyStep: 1,
-        })
-      );
-
-      // Create user on server
-      try {
-        console.log('Creating user on server...');
-        const apiUserData = {
-          email: newProfile.id,
-          height: 170.0,
-          weight: 70.0,
-          age: 30,
-          physical_activity: "Moderate",
-          gender: "not_specified",
-          comorbidities: [],
-          preferences: "No specific preferences",
-        };
-        
-        await api.post('add_user', apiUserData);
-        console.log('User created successfully on server');
-      } catch (apiError) {
-        console.error('Failed to create user on server, but proceeding with local profile', apiError);
-      }
-
-      // Update the profile list
-      const updatedProfiles = [...profiles, newProfile];
-      await AsyncStorage.setItem('profileList', JSON.stringify(updatedProfiles));
-      setProfiles(updatedProfiles);
-      setNewProfileModalVisible(false);
-      setNewUsername('');
+      console.log(`Creating new user: ${newEmail}`);
+      
+      // Use the context method to create a new user
+      await createNewUser(newEmail);
+      
+      setNewUserModalVisible(false);
+      setNewEmail('');
       setError('');
-
-      // Automatically select the new profile
-      onProfileSelect(newProfile.id);
+      
+      // Call the callback if provided (for backward compatibility)
+      if (onProfileSelect) {
+        onProfileSelect(newEmail);
+      }
     } catch (error) {
-      console.error('Error creating profile:', error);
-      setError('Failed to create profile');
+      console.error('Error creating user:', error);
+      setError('Failed to create user');
     }
   };
 
-  const handleProfileSelect = (profileId: string) => {
-    onProfileSelect(profileId);
+  const handleProfileSelect = (email: string) => {
+    selectUser(email);
+    
+    // Call the callback if provided (for backward compatibility)
+    if (onProfileSelect) {
+      onProfileSelect(email);
+    }
   };
 
-  const renderProfileItem = ({ item }: { item: Profile }) => (
+  const renderProfileItem = ({ item }: { item: string }) => (
     <TouchableOpacity
       style={styles.profileItem}
-      onPress={() => handleProfileSelect(item.id)}
+      onPress={() => handleProfileSelect(item)}
     >
       <View style={styles.profileAvatar}>
         <MaterialCommunityIcons name="account" size={32} color={COLORS.white} />
       </View>
       <View style={styles.profileInfo}>
-        <Text style={styles.profileName}>{item.username}</Text>
-        <Text style={styles.profileDate}>
-          Created: {new Date(item.createdAt).toLocaleDateString()}
-        </Text>
+        <Text style={styles.profileName}>{item}</Text>
       </View>
       <MaterialCommunityIcons name="chevron-right" size={24} color={COLORS.mediumGray} />
     </TouchableOpacity>
@@ -163,9 +105,9 @@ const ProfileSelectionScreen = ({ onProfileSelect }: ProfileSelectionScreenProps
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Select Profile</Text>
+        <Text style={styles.title}>Select User</Text>
         <Text style={styles.subtitle}>
-          Choose an existing profile or create a new one
+          Choose an existing user or create a new one
         </Text>
       </View>
 
@@ -175,47 +117,48 @@ const ProfileSelectionScreen = ({ onProfileSelect }: ProfileSelectionScreenProps
         </View>
       ) : (
         <>
-          {profiles.length > 0 ? (
+          {userList.length > 0 ? (
             <FlatList
-              data={profiles}
+              data={userList}
               renderItem={renderProfileItem}
-              keyExtractor={(item) => item.id}
+              keyExtractor={(item) => item}
               contentContainerStyle={styles.listContent}
             />
           ) : (
             <View style={styles.emptyState}>
               <MaterialCommunityIcons name="account-multiple" size={64} color={COLORS.lightGray} />
-              <Text style={styles.emptyStateText}>No profiles found</Text>
-              <Text style={styles.emptyStateSubtext}>Create a profile to get started</Text>
+              <Text style={styles.emptyStateText}>No users found</Text>
+              <Text style={styles.emptyStateSubtext}>Create a user to get started</Text>
             </View>
           )}
 
           <TouchableOpacity
             style={styles.createButton}
-            onPress={() => setNewProfileModalVisible(true)}
+            onPress={() => setNewUserModalVisible(true)}
           >
             <MaterialCommunityIcons name="plus" size={24} color={COLORS.white} />
-            <Text style={styles.createButtonText}>Create New Profile</Text>
+            <Text style={styles.createButtonText}>Create New User</Text>
           </TouchableOpacity>
         </>
       )}
 
-      {/* New Profile Modal */}
+      {/* New User Modal */}
       <Modal
-        visible={newProfileModalVisible}
+        visible={newUserModalVisible}
         transparent={true}
         animationType="slide"
-        onRequestClose={() => setNewProfileModalVisible(false)}
+        onRequestClose={() => setNewUserModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
-            <Text style={styles.modalTitle}>Create New Profile</Text>
+            <Text style={styles.modalTitle}>Create New User</Text>
             <TextInput
               style={styles.input}
-              placeholder="Enter username"
-              value={newUsername}
-              onChangeText={setNewUsername}
+              placeholder="Enter email address"
+              value={newEmail}
+              onChangeText={setNewEmail}
               autoCapitalize="none"
+              keyboardType="email-address"
               autoFocus
             />
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -223,8 +166,8 @@ const ProfileSelectionScreen = ({ onProfileSelect }: ProfileSelectionScreenProps
               <TouchableOpacity
                 style={[styles.modalButton, styles.cancelButton]}
                 onPress={() => {
-                  setNewProfileModalVisible(false);
-                  setNewUsername('');
+                  setNewUserModalVisible(false);
+                  setNewEmail('');
                   setError('');
                 }}
               >
@@ -304,11 +247,6 @@ const styles = StyleSheet.create({
     fontSize: SIZES.large,
     color: COLORS.text,
     marginBottom: 4,
-  },
-  profileDate: {
-    ...FONTS.regular,
-    fontSize: SIZES.small,
-    color: COLORS.darkGray,
   },
   emptyState: {
     flex: 1,

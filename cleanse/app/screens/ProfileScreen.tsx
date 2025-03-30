@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -45,11 +45,18 @@ const mockStatistics = {
 };
 
 const ProfileScreen = () => {
-  const { healthData, updateHealthData } = useUser();
+  const { healthData, updateHealthData, currentUser, hasSelectedUser } = useUser();
   const [editMode, setEditMode] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [currentField, setCurrentField] = useState<string | null>(null);
   const [tempValue, setTempValue] = useState<string>('');
+
+  // Effect to ensure we have the latest health data
+  useEffect(() => {
+    console.log("ProfileScreen: Current user:", currentUser);
+    console.log("ProfileScreen: Has selected user:", hasSelectedUser);
+    console.log("ProfileScreen: Health data:", healthData);
+  }, [currentUser, hasSelectedUser, healthData]);
 
   // Function to render nutritional stat
   const renderNutritionStat = (title: string, data: { amount: string, level: string }) => {
@@ -126,8 +133,16 @@ const ProfileScreen = () => {
       <View style={styles.header}>
         <Text style={styles.title}>Profile</Text>
         <Text style={styles.subtitle}>
-          Manage your health profile and preferences
+          {currentUser ? `${currentUser}'s health profile` : 'Manage your health profile and preferences'}
         </Text>
+        <TouchableOpacity 
+          style={styles.editButton} 
+          onPress={() => setEditMode(!editMode)}
+        >
+          <Text style={styles.editButtonText}>
+            {editMode ? 'Done' : 'Edit'}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView 

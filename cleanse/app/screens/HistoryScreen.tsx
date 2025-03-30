@@ -21,6 +21,7 @@ interface HistoryItem {
   imageUrl: string;
   healthScore: number;
   nutritionInfo: NutritionInfo;
+  upc: string;
 }
 
 interface FilterOption {
@@ -45,7 +46,7 @@ const HistoryScreen = () => {
   const [historyData, setHistoryData] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { selectedProfileId } = useUser();
+  const { currentUser: selectedProfileId, hasSelectedUser } = useUser();
   const [refreshing, setRefreshing] = useState(false);
 
   const filterOptions: FilterOption[] = [
@@ -56,8 +57,10 @@ const HistoryScreen = () => {
   ];
 
   useEffect(() => {
-    fetchHistoryData();
-  }, [selectedProfileId]);
+    if (hasSelectedUser) {
+      fetchHistoryData();
+    }
+  }, [selectedProfileId, hasSelectedUser]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -67,43 +70,71 @@ const HistoryScreen = () => {
 
   const fetchHistoryData = async () => {
     try {
+      // Don't fetch if we're already loading to prevent duplicate calls
+      if (loading) {
+        console.log('Already fetching history, skipping duplicate call');
+        return;
+      }
+      
       setLoading(true);
       setError(null);
       
       if (!selectedProfileId) {
         setError('No profile selected');
         setLoading(false);
+        setHistoryData([]);
         return;
       }
       
       console.log(`Fetching history for user: ${selectedProfileId}`);
-      const data = await api.get<HistoryApiItem[]>(`get_history?email=${selectedProfileId}`);
+      let data: HistoryApiItem[] = [];
+      try {
+        data = await api.get<HistoryApiItem[]>(`get_history?email=${selectedProfileId}`);
+      } catch (apiError) {
+        console.error('API error fetching history:', apiError);
+        // Use empty array if API fails
+        data = [];
+      }
       
-      // Data will always be an array (empty if no history)
-      // Transform API data to our app's format
-      const formattedData: HistoryItem[] = Array.isArray(data) ? data.map((item, index) => ({
+      // Ensure we have valid array data
+      const historyItems = Array.isArray(data) ? data : [];
+      console.log(`Received ${historyItems.length} history items`);
+      
+      // Transform API data to our app's format - handle empty array case
+      const formattedData: HistoryItem[] = historyItems.map((item, index) => ({
         id: index.toString(),
-        productName: `Product #${item.upc}`, // The API doesn't provide product name yet
+        productName: `Product #${item.upc || 'unknown'}`, // Handle missing UPC
         brand: 'Unknown Brand', // The API doesn't provide brand yet
-        dateScanned: new Date(item.date).toLocaleDateString(),
-        // Store the actual date for sorting
-        rawDate: item.date,
-        imageUrl: item.image_url,
-        healthScore: item.score,
+        dateScanned: item.date ? new Date(item.date).toLocaleDateString() : 'Unknown date',
+        rawDate: item.date || '',
+        imageUrl: item.image_url || 'https://cdn-icons-png.flaticon.com/512/3724/3724788.png',
+        healthScore: item.score || 0,
         nutritionInfo: {
-          sugar: getSugarLevel(item.score),
-          sodium: getSodiumLevel(item.score),
-          fat: getFatLevel(item.score),
+          sugar: getSugarLevel(item.score || 0),
+          sodium: getSodiumLevel(item.score || 0),
+          fat: getFatLevel(item.score || 0),
+        },
+        upc: item.upc // Add UPC to identify duplicates
+      }));
+      
+      // Remove duplicates based on UPC code
+      const uniqueItems = formattedData.reduce<HistoryItem[]>((acc, current) => {
+        const x = acc.find(item => item.upc === current.upc);
+        if (!x) {
+          return acc.concat(current);
         }
-      })) : [];
+        return acc;
+      }, []);
       
       // Sort by date (newest first)
-      const sortedData = formattedData.sort((a, b) => 
-        new Date(b.rawDate || '').getTime() - new Date(a.rawDate || '').getTime()
-      );
+      const sortedData = uniqueItems.sort((a, b) => {
+        const dateA = new Date(a.rawDate || '').getTime();
+        const dateB = new Date(b.rawDate || '').getTime();
+        return isNaN(dateB) || isNaN(dateA) ? 0 : dateB - dateA;
+      });
       
       setHistoryData(sortedData);
-      console.log(`Loaded ${sortedData.length} history items`);
+      console.log(`Loaded ${sortedData.length} unique history items after deduplication`);
     } catch (error) {
       console.error('Error fetching history:', error);
       // Don't set error for empty history, just show empty state

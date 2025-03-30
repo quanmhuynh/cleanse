@@ -115,7 +115,7 @@ const TabNavigator = () => {
 };
 
 const AppNavigator = () => {
-  const { hasSelectedProfile, completedSurvey, selectProfile } = useUser();
+  const { hasSelectedUser, completedSurvey, selectUser } = useUser();
   const router = useRouter();
   const segments = useSegments();
 
@@ -147,10 +147,10 @@ const AppNavigator = () => {
   }, [completedSurvey, segments, router]); // Add router to dependency array
 
   // If user hasn't selected a profile, show profile selection
-  if (!hasSelectedProfile) {
+  if (!hasSelectedUser) {
     return (
       <ProfileSelectionScreen
-        onProfileSelect={(profileId) => selectProfile(profileId)}
+        onProfileSelect={(email) => selectUser(email)}
       />
     );
   }

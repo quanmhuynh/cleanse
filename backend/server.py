@@ -45,18 +45,38 @@ class HistoryInputModel(BaseModel):
 @app.post("/add_user")
 def add_user(user: UserModel):
     try:
-        db_manager.add_user(
-            email=user.email,
-            height=user.height,
-            weight=user.weight,
-            age=user.age,
-            physical_activity=user.physical_activity,
-            gender=user.gender,
-            comorbidities=user.comorbidities,
-            preferences=user.preferences,
-        )
-        return {"message": "User added successfully"}
+        # First check if the user already exists
+        existing_user = db_manager.get_user(user.email)
+        
+        if existing_user:
+            print(f"User {user.email} already exists, updating instead of inserting")
+            # Update the existing user
+            db_manager.update_user(
+                email=user.email,
+                height=user.height,
+                weight=user.weight,
+                age=user.age,
+                physical_activity=user.physical_activity,
+                gender=user.gender,
+                comorbidities=user.comorbidities,
+                preferences=user.preferences,
+            )
+            return {"message": "User updated successfully"}
+        else:
+            # Create a new user
+            db_manager.add_user(
+                email=user.email,
+                height=user.height,
+                weight=user.weight,
+                age=user.age,
+                physical_activity=user.physical_activity,
+                gender=user.gender,
+                comorbidities=user.comorbidities,
+                preferences=user.preferences,
+            )
+            return {"message": "User added successfully"}
     except Exception as exc:
+        print(f"Error in add_user: {str(exc)}")
         raise HTTPException(status_code=400, detail=str(exc))
 
 
@@ -196,11 +216,19 @@ def add_history(history: HistoryInputModel):
 
 @app.get("/get_history")
 def get_history(email: str):
-    history_list = db_manager.get_user_history(email)
-    if not history_list:
-        # Return an empty list instead of raising an error
+    try:
+        print(f"Fetching history for user: {email}")
+        history_list = db_manager.get_user_history(email)
+        if not history_list:
+            print(f"No history found for user: {email}, returning empty list")
+            # Return an empty list instead of raising an error
+            return []
+        print(f"Found {len(history_list)} history items for user: {email}")
+        return history_list
+    except Exception as e:
+        print(f"Error fetching history: {str(e)}")
+        # Still return empty list instead of error, to be more robust
         return []
-    return history_list
 
 
 @app.get("/get_users")

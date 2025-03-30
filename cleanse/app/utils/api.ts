@@ -72,14 +72,21 @@ export const apiRequest = async <T>(
     
     console.log(`Response status: ${response.status}`);
     
-    // Special case for get_user endpoint: if it returns 404, return null instead of throwing
+    // Special handling for specific endpoints and status codes
     if (!response.ok) {
+      // Handle get_history 404 errors specially - return empty array
+      if (endpoint.startsWith('get_history') && response.status === 404) {
+        console.log('No history found, returning empty array');
+        return [] as unknown as T;
+      }
+      
       // Check if this is a get_user 404 error
       if (endpoint.startsWith('get_user') && response.status === 404) {
         console.log('User not found, returning null');
         return null as T;
       }
       
+      // For other errors, try to get detailed error message
       try {
         const errorData = await response.json();
         console.log('Error response:', errorData);
@@ -98,6 +105,22 @@ export const apiRequest = async <T>(
       return {} as T;
     }
     
+    // Special case for empty responses that should be arrays
+    if (endpoint.startsWith('get_history')) {
+      try {
+        const jsonData = await response.json();
+        console.log(`History data type: ${typeof jsonData}, is array: ${Array.isArray(jsonData)}`);
+        if (!jsonData || (Array.isArray(jsonData) && jsonData.length === 0)) {
+          console.log('History is empty, returning empty array');
+        }
+        return jsonData;
+      } catch (jsonError) {
+        console.error('Error parsing JSON response for history:', jsonError);
+        // Return empty array for history endpoint on parse error
+        return [] as unknown as T;
+      }
+    }
+    
     try {
       const jsonData = await response.json();
       console.log('Successful response data type:', typeof jsonData);
@@ -108,6 +131,13 @@ export const apiRequest = async <T>(
     }
   } catch (fetchError) {
     console.error('Fetch error:', fetchError);
+    
+    // Special case for history endpoint - return empty array on error
+    if (endpoint.startsWith('get_history')) {
+      console.log('Returning empty array for history on fetch error');
+      return [] as unknown as T;
+    }
+    
     throw fetchError;
   }
 };

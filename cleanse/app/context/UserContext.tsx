@@ -4,13 +4,11 @@ import { api } from '../utils/api';
 
 // Define interface for health data
 export interface UserHealthData {
-  // Step 1: Characteristics
+  email: string;
   age: number | null;
   weight: number | null; // in kg
   height: number | null; // in cm
   gender: 'male' | 'female' | 'other' | null;
-  
-  // Step 2: Health conditions
   conditions: {
     highBloodPressure: boolean;
     diabetes: boolean;
@@ -21,45 +19,28 @@ export interface UserHealthData {
     dietaryRestrictions: string[];
     otherConditions: string[];
   };
-  
-  // Step 3: Additional preferences
   additionalPreferences: string;
 }
 
-// Define interface for API user data
-interface ApiUserData {
-  email: string;
-  height: number | null;
-  weight: number | null;
-  age: number | null;
-  physical_activity: string;
-  gender: string | null;
-  comorbidities: string[];
-  preferences: string;
-}
-
 interface UserContextType {
-  // Profile selection
-  selectedProfileId: string | null;
-  selectProfile: (profileId: string) => Promise<void>;
-  hasSelectedProfile: boolean;
-
-  // Survey and user data
+  currentUser: string | null;
+  selectUser: (email: string) => Promise<void>;
+  hasSelectedUser: boolean;
   completedSurvey: boolean;
   setCompletedSurvey: (completed: boolean) => void;
   healthData: UserHealthData;
   updateHealthData: (data: Partial<UserHealthData>) => void;
   currentSurveyStep: number;
   setCurrentSurveyStep: (step: number) => void;
-  
-  // New profile management functions
-  createNewProfile: (username: string) => Promise<string>;
-  loadUserData: () => Promise<void>;
+  createNewUser: (email: string) => Promise<void>;
   saveUserData: () => Promise<void>;
+  userList: string[];
+  loadUserList: () => Promise<void>;
 }
 
 // Create initial health data
 const initialHealthData: UserHealthData = {
+  email: '',
   age: null,
   weight: null,
   height: null,
@@ -79,27 +60,46 @@ const initialHealthData: UserHealthData = {
 
 // Create context with default values
 const UserContext = createContext<UserContextType>({
-  selectedProfileId: null,
-  selectProfile: async () => {},
-  hasSelectedProfile: false,
+  currentUser: null,
+  selectUser: async () => {},
+  hasSelectedUser: false,
   completedSurvey: false,
   setCompletedSurvey: () => {},
   healthData: initialHealthData,
   updateHealthData: () => {},
   currentSurveyStep: 1,
   setCurrentSurveyStep: () => {},
-  createNewProfile: async () => '',
-  loadUserData: async () => {},
+  createNewUser: async () => {},
   saveUserData: async () => {},
+  userList: [],
+  loadUserList: async () => {},
 });
 
 // Provider component that wraps app
 export function UserProvider({ children }: { children: ReactNode }) {
-  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
-  const [hasSelectedProfile, setHasSelectedProfile] = useState(false);
+  const [currentUser, setCurrentUser] = useState<string | null>(null);
+  const [hasSelectedUser, setHasSelectedUser] = useState(false);
   const [completedSurvey, setCompletedSurvey] = useState(false);
   const [healthData, setHealthData] = useState<UserHealthData>(initialHealthData);
   const [currentSurveyStep, setCurrentSurveyStep] = useState(1);
+  const [userList, setUserList] = useState<string[]>([]);
+
+  // Load user list on mount
+  useEffect(() => {
+    loadUserList();
+  }, []);
+
+  // Load the list of users
+  const loadUserList = async () => {
+    try {
+      const storedList = await AsyncStorage.getItem('userList');
+      if (storedList) {
+        setUserList(JSON.parse(storedList));
+      }
+    } catch (error) {
+      console.error('Error loading user list:', error);
+    }
+  };
 
   // Function to update health data
   const updateHealthData = (data: Partial<UserHealthData>) => {
@@ -114,276 +114,220 @@ export function UserProvider({ children }: { children: ReactNode }) {
         }
       };
       
-      // Save the updated data to storage and API
-      saveUserData(updatedData);
-      
       return updatedData;
     });
   };
 
-  // Select a profile and load its data
-  const selectProfile = async (profileId: string) => {
+  // Select a user and load their data
+  const selectUser = async (email: string) => {
     try {
-      console.log(`Selecting profile: ${profileId}`);
-      setSelectedProfileId(profileId);
+      console.log(`Selecting user: ${email}`);
+      setCurrentUser(email);
       
-      // First check if user exists on the API
-      try {
-        console.log(`Checking if user exists on server: ${profileId}`);
-        const userData = await api.get<ApiUserData | null>(`get_user?email=${profileId}`);
-        
-        // If user doesn't exist on the API, create one
-        if (!userData) {
-          console.log(`User ${profileId} not found on server, creating default user...`);
+      // Load user data from local storage
+      const userDataJson = await AsyncStorage.getItem(`user_${email}`);
+      
+      if (userDataJson) {
+        // Local data exists, use it
+        const userData = JSON.parse(userDataJson);
+        setHealthData({...userData, email});
+        setCompletedSurvey(!!userData.completedSurvey);
+        setCurrentSurveyStep(userData.currentSurveyStep || 1);
+      } else {
+        // No local data, try to get from API
+        try {
+          const apiUserData = await api.get<any>(`get_user?email=${email}`);
           
-          // Get local user data first to use if available
-          let localUserData = null;
-          try {
-            const userDataJson = await AsyncStorage.getItem(`userData_${profileId}`);
-            if (userDataJson) {
-              localUserData = JSON.parse(userDataJson);
-              console.log('Found local user data to use for API creation');
-            }
-          } catch (localError) {
-            console.log('No local user data found or error reading it');
+          if (apiUserData) {
+            // Transform API data to our format
+            const formattedData: UserHealthData = {
+              email: email,
+              age: apiUserData.age || null,
+              weight: apiUserData.weight || null,
+              height: apiUserData.height || null,
+              gender: apiUserData.gender as any || null,
+              conditions: {
+                highBloodPressure: apiUserData.comorbidities?.includes('high_blood_pressure') || false,
+                diabetes: apiUserData.comorbidities?.includes('diabetes') || false,
+                heartDisease: apiUserData.comorbidities?.includes('heart_disease') || false,
+                kidneyDisease: apiUserData.comorbidities?.includes('kidney_disease') || false,
+                pregnant: apiUserData.comorbidities?.includes('pregnant') || false,
+                cancer: apiUserData.comorbidities?.includes('cancer') || false,
+                dietaryRestrictions: apiUserData.comorbidities?.filter((c: string) => 
+                  ['gluten_free', 'dairy_free', 'vegan', 'vegetarian'].includes(c)) || [],
+                otherConditions: apiUserData.comorbidities?.filter((c: string) => 
+                  !['high_blood_pressure', 'diabetes', 'heart_disease', 'kidney_disease', 
+                  'pregnant', 'cancer', 'gluten_free', 'dairy_free', 'vegan', 'vegetarian'].includes(c)) || [],
+              },
+              additionalPreferences: apiUserData.preferences || '',
+            };
+            
+            setHealthData(formattedData);
+            setCompletedSurvey(true); // If it exists in API, assume survey is completed
+            setCurrentSurveyStep(4);
+            
+            // Save to local storage for future use
+            await AsyncStorage.setItem(`user_${email}`, JSON.stringify({
+              ...formattedData,
+              completedSurvey: true,
+              currentSurveyStep: 4
+            }));
+          } else {
+            // No data in API either, initialize with defaults
+            const newUserData = {
+              ...initialHealthData,
+              email: email,
+              completedSurvey: false,
+              currentSurveyStep: 1
+            };
+            
+            setHealthData({...initialHealthData, email});
+            setCompletedSurvey(false);
+            setCurrentSurveyStep(1);
+            
+            // Save default data to local storage
+            await AsyncStorage.setItem(`user_${email}`, JSON.stringify(newUserData));
           }
-          
-          // Create user data for API, preferring local data if available
-          const defaultUser = {
-            email: profileId,
-            height: localUserData?.healthData?.height || 170.0,
-            weight: localUserData?.healthData?.weight || 70.0,
-            age: localUserData?.healthData?.age || 30,
-            physical_activity: "Moderate",
-            gender: localUserData?.healthData?.gender || "not_specified",
-            comorbidities: [],
-            preferences: localUserData?.healthData?.additionalPreferences || "No specific preferences"
+        } catch (error) {
+          console.error('Error fetching user from API:', error);
+          // Initialize with defaults
+          const newUserData = {
+            ...initialHealthData,
+            email: email,
+            completedSurvey: false,
+            currentSurveyStep: 1
           };
           
-          try {
-            // Create the user on the server
-            const result = await api.post('add_user', defaultUser);
-            console.log(`Created default user for ${profileId} on server:`, result);
-            
-            // Fetch the user data right after creation to confirm
-            const newUserData = await api.get<ApiUserData | null>(`get_user?email=${profileId}`);
-            if (newUserData) {
-              console.log('Successfully verified user was created on server');
-            } else {
-              console.warn('User was created but verification failed');
-            }
-          } catch (createError) {
-            console.error(`Failed to create default user on server: ${createError}`);
-            // Continue anyway, as we'll use local data
-          }
-        } else {
-          console.log(`User ${profileId} exists on server`);
+          setHealthData({...initialHealthData, email});
+          setCompletedSurvey(false);
+          setCurrentSurveyStep(1);
+          
+          // Save default data to local storage
+          await AsyncStorage.setItem(`user_${email}`, JSON.stringify(newUserData));
         }
-      } catch (error) {
-        console.log(`Error checking user existence: ${error}`);
-        // Continue with local data if we can't check the API
       }
       
-      // Now load the user data (either from API or local storage)
-      await loadUserData(profileId);
-      setHasSelectedProfile(true);
+      setHasSelectedUser(true);
     } catch (error) {
-      console.error('Error selecting profile:', error);
+      console.error('Error selecting user:', error);
     }
   };
 
-  // Load user data from API and fallback to storage if API fails
-  const loadUserData = async (profileId?: string) => {
+  // Create a new user
+  const createNewUser = async (email: string) => {
     try {
-      const idToUse = profileId || selectedProfileId;
-      if (!idToUse) return;
-
-      // Try to fetch from API first
-      try {
-        console.log(`Fetching user data from API for: ${idToUse}`);
-        const userData = await api.get<ApiUserData | null>(`get_user?email=${idToUse}`);
-        
-        // Only process if userData exists and is not null
-        if (userData) {
-          console.log(`User data found on server for: ${idToUse}`);
-          // Transform API data to our format
-          const healthData: UserHealthData = {
-            age: userData.age || null,
-            weight: userData.weight || null,
-            height: userData.height || null,
-            gender: userData.gender as any || null,
-            conditions: {
-              highBloodPressure: userData.comorbidities?.includes('high_blood_pressure') || false,
-              diabetes: userData.comorbidities?.includes('diabetes') || false,
-              heartDisease: userData.comorbidities?.includes('heart_disease') || false,
-              kidneyDisease: userData.comorbidities?.includes('kidney_disease') || false,
-              pregnant: userData.comorbidities?.includes('pregnant') || false,
-              cancer: userData.comorbidities?.includes('cancer') || false,
-              dietaryRestrictions: userData.comorbidities?.filter(c => 
-                ['gluten_free', 'dairy_free', 'vegan', 'vegetarian'].includes(c)) || [],
-              otherConditions: userData.comorbidities?.filter(c => 
-                !['high_blood_pressure', 'diabetes', 'heart_disease', 'kidney_disease', 
-                'pregnant', 'cancer', 'gluten_free', 'dairy_free', 'vegan', 'vegetarian'].includes(c)) || [],
-            },
-            additionalPreferences: userData.preferences || '',
-          };
-          
-          setHealthData(healthData);
-          setCompletedSurvey(true);
-          setCurrentSurveyStep(4); // completed
-          return;
-        } else {
-          console.log('No user data found in API, falling back to local storage');
-        }
-      } catch (apiError) {
-        console.log('API fetch failed, falling back to local storage', apiError);
-      }
-
-      // Fallback to local storage
-      const userDataJson = await AsyncStorage.getItem(`userData_${idToUse}`);
-      if (userDataJson) {
-        const userData = JSON.parse(userDataJson);
-        
-        // Set state based on loaded data
-        if (userData.completedSurvey !== undefined) {
-          setCompletedSurvey(userData.completedSurvey);
-        }
-        
-        if (userData.healthData) {
-          setHealthData(userData.healthData);
-        }
-        
-        if (userData.currentSurveyStep) {
-          setCurrentSurveyStep(userData.currentSurveyStep);
-        }
-      }
+      console.log(`Creating new user: ${email}`);
+      
+      // Initialize with defaults
+      const newUserData = {
+        ...initialHealthData,
+        email: email,
+        completedSurvey: false,
+        currentSurveyStep: 1
+      };
+      
+      // Save to local storage
+      await AsyncStorage.setItem(`user_${email}`, JSON.stringify(newUserData));
+      
+      // Update user list
+      const updatedUserList = [...userList, email];
+      setUserList(updatedUserList);
+      await AsyncStorage.setItem('userList', JSON.stringify(updatedUserList));
+      
+      // Select the new user
+      await selectUser(email);
     } catch (error) {
-      console.error('Error loading user data:', error);
+      console.error('Error creating new user:', error);
     }
   };
 
   // Save user data to storage and API
-  const saveUserData = async (updatedHealthData?: UserHealthData) => {
+  const saveUserData = async () => {
+    if (!currentUser) {
+      console.error('Cannot save user data: No user selected');
+      return;
+    }
+    
     try {
-      if (!selectedProfileId) {
-        console.error('Cannot save user data: No profile selected');
-        return;
-      }
-      
-      console.log(`Saving user data for ${selectedProfileId}`);
-      const dataToUse = updatedHealthData || healthData;
+      console.log(`Saving user data for ${currentUser}`);
       
       // Save to local storage
-      const userData = {
+      const dataToSave = {
+        ...healthData,
         completedSurvey,
-        healthData: dataToUse,
-        currentSurveyStep,
+        currentSurveyStep
       };
       
-      await AsyncStorage.setItem(
-        `userData_${selectedProfileId}`, 
-        JSON.stringify(userData)
-      );
-      console.log('User data saved to local storage');
+      await AsyncStorage.setItem(`user_${currentUser}`, JSON.stringify(dataToSave));
       
-      // Always save to API regardless of survey completion
-      // Transform our data format to API format
-      const apiUserData = {
-        email: selectedProfileId,
-        height: dataToUse.height || 170.0, // Provide defaults where needed
-        weight: dataToUse.weight || 70.0,
-        age: dataToUse.age || 30,
-        physical_activity: "Regular exercise", // Placeholder, would come from UI
-        gender: dataToUse.gender || "not_specified",
-        comorbidities: [
-          ...(dataToUse.conditions.highBloodPressure ? ['high_blood_pressure'] : []),
-          ...(dataToUse.conditions.diabetes ? ['diabetes'] : []),
-          ...(dataToUse.conditions.heartDisease ? ['heart_disease'] : []),
-          ...(dataToUse.conditions.kidneyDisease ? ['kidney_disease'] : []),
-          ...(dataToUse.conditions.pregnant ? ['pregnant'] : []),
-          ...(dataToUse.conditions.cancer ? ['cancer'] : []),
-          ...dataToUse.conditions.dietaryRestrictions,
-          ...dataToUse.conditions.otherConditions,
-        ],
-        preferences: dataToUse.additionalPreferences || "No specific preferences",
-      };
-      
-      try {
-        console.log('Saving user data to API...');
-        const result = await api.post('add_user', apiUserData);
-        console.log('User data saved to API successfully:', result);
-      } catch (apiError) {
-        console.error('Failed to save user data to API:', apiError);
-        // Continue as we have saved to local storage as a backup
+      // Only send to API if survey is completed
+      if (completedSurvey) {
+        // Format for API
+        const apiUserData = {
+          email: currentUser,
+          height: healthData.height || 170.0,
+          weight: healthData.weight || 70.0,
+          age: healthData.age || 30,
+          physical_activity: "Moderate",
+          gender: healthData.gender || "not_specified",
+          comorbidities: [
+            ...(healthData.conditions.highBloodPressure ? ['high_blood_pressure'] : []),
+            ...(healthData.conditions.diabetes ? ['diabetes'] : []),
+            ...(healthData.conditions.heartDisease ? ['heart_disease'] : []),
+            ...(healthData.conditions.kidneyDisease ? ['kidney_disease'] : []),
+            ...(healthData.conditions.pregnant ? ['pregnant'] : []),
+            ...(healthData.conditions.cancer ? ['cancer'] : []),
+            ...healthData.conditions.dietaryRestrictions,
+            ...healthData.conditions.otherConditions,
+          ],
+          preferences: healthData.additionalPreferences || "No specific preferences",
+        };
+        
+        try {
+          await api.post('add_user', apiUserData);
+          console.log('User data saved to API successfully');
+        } catch (apiError) {
+          console.error('Failed to save user data to API:', apiError);
+        }
       }
     } catch (error) {
       console.error('Error saving user data:', error);
     }
   };
 
-  // Create a new profile
-  const createNewProfile = async (username: string): Promise<string> => {
-    try {
-      // Get existing profiles
-      const profileListJson = await AsyncStorage.getItem('profileList');
-      const profileList = profileListJson ? JSON.parse(profileListJson) : [];
-      
-      // Create new profile
-      const newProfileId = `profile_${Date.now()}`;
-      const newProfile = {
-        id: newProfileId,
-        username,
-        createdAt: new Date().toISOString(),
-      };
-      
-      // Add to list and save
-      profileList.push(newProfile);
-      await AsyncStorage.setItem('profileList', JSON.stringify(profileList));
-      
-      // Create empty user data for this profile
-      await AsyncStorage.setItem(
-        `userData_${newProfileId}`, 
-        JSON.stringify({
-          completedSurvey: false,
-          healthData: initialHealthData,
-          currentSurveyStep: 1,
-        })
-      );
-      
-      return newProfileId;
-    } catch (error) {
-      console.error('Error creating new profile:', error);
-      throw error;
-    }
-  };
-
   // Save data whenever relevant state changes
   useEffect(() => {
-    if (selectedProfileId) {
+    if (currentUser) {
       saveUserData();
     }
-  }, [completedSurvey, healthData, currentSurveyStep]);
-
-  // Override setCompletedSurvey to also save data
-  const setCompletedSurveyWithSave = (value: boolean) => {
-    setCompletedSurvey(value);
-    // Data will be saved via the useEffect
-  };
+  }, [completedSurvey, currentSurveyStep]);
+  
+  // Save health data changes with debounce
+  useEffect(() => {
+    if (currentUser) {
+      const timeoutId = setTimeout(() => {
+        saveUserData();
+      }, 1000); // 1 second debounce
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [healthData]);
 
   return (
     <UserContext.Provider value={{
-      selectedProfileId,
-      selectProfile,
-      hasSelectedProfile,
+      currentUser,
+      selectUser,
+      hasSelectedUser,
       completedSurvey,
-      setCompletedSurvey: setCompletedSurveyWithSave,
+      setCompletedSurvey,
       healthData,
       updateHealthData,
       currentSurveyStep,
       setCurrentSurveyStep,
-      createNewProfile,
-      loadUserData,
+      createNewUser,
       saveUserData,
+      userList,
+      loadUserList
     }}>
       {children}
     </UserContext.Provider>
@@ -395,5 +339,4 @@ export function useUser() {
   return useContext(UserContext);
 }
 
-// Add default export
 export default UserProvider; 

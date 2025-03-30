@@ -230,6 +230,60 @@ class DatabaseManager:
         """Close the database connection."""
         self.conn.close()
 
+    def update_user(
+        self,
+        email: str,
+        height: float,
+        weight: float,
+        age: int,
+        physical_activity: str,
+        gender: str,
+        comorbidities: list,
+        preferences: str,
+    ):
+        """
+        Update an existing user in the Users table.
+
+        Args:
+            email: User's email address (primary key, used for identification).
+            height: User's height.
+            weight: User's weight.
+            age: User's age.
+            physical_activity: Description of physical activity level.
+            gender: User's gender.
+            comorbidities: List of comorbidities/diseases.
+            preferences: User's preferences.
+        """
+        cursor = self.conn.cursor()
+        comorbidities_json = json.dumps(comorbidities)
+        try:
+            cursor.execute(
+                """
+                UPDATE Users
+                SET height = ?, weight = ?, age = ?, physical_activity = ?,
+                    gender = ?, comorbidities = ?, preferences = ?
+                WHERE email = ?;
+                """,
+                (
+                    height,
+                    weight,
+                    age,
+                    physical_activity,
+                    gender,
+                    comorbidities_json,
+                    preferences,
+                    email,
+                ),
+            )
+            self.conn.commit()
+            if cursor.rowcount == 0:
+                print(f"Warning: No user with email {email} found to update")
+                return False
+            return True
+        except sqlite3.Error as e:
+            print(f"Error updating user: {str(e)}")
+            raise e
+
 
 # Example usage:
 if __name__ == "__main__":
