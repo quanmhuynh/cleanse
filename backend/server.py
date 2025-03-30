@@ -1,44 +1,88 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException
-import os
-import shutil
-import tempfile
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import List, Optional
+
+from database import DatabaseManager  # Ensure this module is in your project
+
+# Create a single global instance of the DatabaseManager.
+db_manager = DatabaseManager("example.db")
 
 app = FastAPI()
 
-@app.post("/upload-image/")
-async def process_image(file: UploadFile = File(...)):
-    # Validate that the uploaded file is an image
-    if not file.content_type.startswith("image/"):
-        raise HTTPException(
-            status_code=400, detail="Uploaded file is not an image"
-        )
+# Enable CORS from any origin.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-    temp_file_path = None
+# Define Pydantic models for request bodies.
+class UserModel(BaseModel):
+    email: str
+    height: float
+    weight: float
+    age: int
+    physical_activity: str
+    gender: str
+    comorbidities: List[str]
+    preferences: str
+
+class HistoryModel(BaseModel):
+    email: str
+    upc: str
+    score: int
+    reasoning: str
+    image_url: str
+    date: Optional[str] = None
+
+class UserEmailModel(BaseModel):
+    email: str
+
+@app.post("/add_user")
+def add_user(user: UserModel):
     try:
-        # Create a temporary file with the same file extension as the uploaded file
-        suffix = os.path.splitext(file.filename)[1]
-        with tempfile.NamedTemporaryFile(
-            delete=False, suffix=suffix
-        ) as tmp:
-            shutil.copyfileobj(file.file, tmp)
-            temp_file_path = tmp.name
+        db_manager.add_user(
+            email=user.email,
+            height=user.height,
+            weight=user.weight,
+            age=user.age,
+            physical_activity=user.physical_activity,
+            gender=user.gender,
+            comorbidities=user.comorbidities,
+            preferences=user.preferences,
+        )
+        return {"message": "User added successfully"}
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
-        # At this point, the file is saved to disk at temp_file_path.
-        # Perform your processing here. For example, you might open the image with a
-        # library like Pillow, run analysis, etc.
-        #
-        # For demonstration, we'll just get the file size.
-        file_size = os.path.getsize(temp_file_path)
+@app.post("/add_history")
+def add_history(history: HistoryModel):
+    try:
+        db_manager.add_history(
+            email=history.email,
+            upc=history.upc,
+            score=history.score,
+            reasoning=history.reasoning,
+            image_url=history.image_url,
+            date=history.date,
+        )
+        return {"message": "History item added successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-        # Your processing results can then be returned or used in further logic.
-        result = {
-            "message": "Image processed successfully",
-            "file_size": file_size,
-        }
+@app.post("/get_history")
+def get_history(user: UserEmailModel):
+    history_list = db_manager.get_user_history(user.email)
+    if not history_list:
+        raise HTTPException(
+            status_code=404, detail="No history found for this user"
+        )
+    return history_list
 
-    finally:
-        # Delete the temporary file if it exists.
-        if temp_file_path and os.path.exists(temp_file_path):
-            os.remove(temp_file_path)
+if __name__ == "__main__":
+    import uvicorn
 
-    return result
+    uvicorn.run(app, host="0.0.0.0", port=8000)

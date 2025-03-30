@@ -35,6 +35,7 @@ dependencies = [
     { name = "firecrawl" },
     { name = "langchain-openai" },
     { name = "openai" },
+    { name = "openfoodfacts" },
     { name = "requests" },
     { name = "requests-oauthlib" },
 ]
@@ -47,6 +48,7 @@ requires-dist = [
     { name = "firecrawl", specifier = ">=1.15.0" },
     { name = "langchain-openai", specifier = ">=0.3.11" },
     { name = "openai", specifier = ">=1.69.0" },
+    { name = "openfoodfacts", specifier = ">=2.5.0" },
     { name = "requests", specifier = ">=2.32.3" },
     { name = "requests-oauthlib", specifier = ">=2.0.0" },
 ]
@@ -363,6 +365,20 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/ab/99/d164612528dfb7a9b19330623daded608e75d25823b01f81e0376eb388a4/openai-1.69.0.tar.gz", hash = "sha256:7b8a10a8ff77e1ae827e5e4c8480410af2070fb68bc973d6c994cf8218f1f98d", size = 409579 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b8/a4/28113be8b7bc937656aaf7b06feff7e9a5eb742ee4e405c6c48c30d879c4/openai-1.69.0-py3-none-any.whl", hash = "sha256:73c4b2ddfd050060f8d93c70367189bd891e70a5adb6d69c04c3571f4fea5627", size = 599068 },
+]
+
+[[package]]
+name = "openfoodfacts"
+version = "2.5.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "requests" },
+    { name = "tqdm" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/31/cb/5d1c13b314cf82ac3554668398a4f5c1414d68f2a3fd7b95072dd6b961d4/openfoodfacts-2.5.0.tar.gz", hash = "sha256:176dd9b341a09ce9385d6820fdf32c6e4461253622bdbdd7df9fd44642973acf", size = 51980 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a0/89/7a6a935f59190426fdfbf271192296aad38759bc4402a5b40867d1e2efea/openfoodfacts-2.5.0-py3-none-any.whl", hash = "sha256:fb51c159a538076f2dafd34f1825d8c18b551ce2259aa3a828647b1103879d3d", size = 56579 },
 ]
 
 [[package]]
