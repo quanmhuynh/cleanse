@@ -26,68 +26,68 @@ interface RecommendedProduct {
 const mockRecommendedData: RecommendedProduct[] = [
   {
     id: '1',
-    productName: 'Organic Steel Cut Oats',
-    brand: 'Honest Harvest',
-    imageUrl: 'https://cdn-icons-png.flaticon.com/512/2515/2515264.png',
+    productName: 'Gluten-Free Quick Oats',
+    brand: 'Bob\'s Red Mill',
+    imageUrl: 'https://cdn-icons-png.flaticon.com/512/3082/3082011.png',
     healthScore: 95,
     benefits: [
-      'High in fiber',
-      'Low sugar content',
-      'Good for heart health'
+      'Certified gluten-free',
+      'Low glycemic index',
+      'Quick prep for busy mornings'
     ],
-    reasonForRecommendation: 'Based on your health profile and dietary preferences'
+    reasonForRecommendation: 'Perfect for diabetic students - ready in 2 minutes'
   },
   {
     id: '2',
-    productName: 'Plant-Based Protein Shake',
-    brand: 'Green Power',
-    imageUrl: 'https://cdn-icons-png.flaticon.com/512/2553/2553651.png',
-    healthScore: 90,
+    productName: 'Greek Yogurt, Plain',
+    brand: 'Fage',
+    imageUrl: 'https://cdn-icons-png.flaticon.com/512/3348/3348076.png',
+    healthScore: 92,
     benefits: [
       'High protein content',
-      'No artificial sweeteners',
-      'Good for muscle recovery'
+      'No added sugar',
+      'Good for blood sugar control'
     ],
-    reasonForRecommendation: 'Similar to products you\'ve scanned before'
+    reasonForRecommendation: 'Great dorm room snack - keeps you full between classes'
   },
   {
     id: '3',
-    productName: 'Sugar-Free Dark Chocolate',
-    brand: 'Sweet Balance',
-    imageUrl: 'https://cdn-icons-png.flaticon.com/512/2431/2431977.png',
-    healthScore: 82,
+    productName: 'Almond Flour Crackers',
+    brand: 'Simple Mills',
+    imageUrl: 'https://cdn-icons-png.flaticon.com/512/2553/2553691.png',
+    healthScore: 88,
     benefits: [
-      'No added sugar',
-      'Rich in antioxidants',
-      'Heart-healthy alternative'
+      'Gluten-free certified',
+      'Low-carb option',
+      'Perfect for on-the-go snacking'
     ],
-    reasonForRecommendation: 'Healthier alternative to previously scanned products'
+    reasonForRecommendation: 'Healthier alternative to regular crackers for late-night studying'
   },
   {
     id: '4',
-    productName: 'Low-Sodium Vegetable Broth',
-    brand: 'Nature\'s Kitchen',
-    imageUrl: 'https://cdn-icons-png.flaticon.com/512/2515/2515305.png',
-    healthScore: 88,
+    productName: 'Chickpea Pasta',
+    brand: 'Banza',
+    imageUrl: 'https://cdn-icons-png.flaticon.com/512/3480/3480618.png',
+    healthScore: 90,
     benefits: [
-      'Low sodium content',
-      'No artificial preservatives',
-      'Good for blood pressure'
+      'Gluten-free pasta alternative',
+      'High protein content',
+      'Lower glycemic impact than regular pasta'
     ],
-    reasonForRecommendation: 'Matches your health conditions (High Blood Pressure)'
+    reasonForRecommendation: 'Easy dorm cooking option that won\'t spike your blood sugar'
   },
   {
     id: '5',
-    productName: 'Gluten-Free Multigrain Bread',
-    brand: 'Healthy Grains',
-    imageUrl: 'https://cdn-icons-png.flaticon.com/512/3365/3365133.png',
-    healthScore: 85,
+    productName: 'Cauliflower Rice',
+    brand: 'Green Giant',
+    imageUrl: 'https://cdn-icons-png.flaticon.com/512/5769/5769095.png',
+    healthScore: 94,
     benefits: [
       'Gluten-free',
-      'High fiber content',
-      'Low glycemic index'
+      'Low-carb rice alternative',
+      'Microwaveable in minutes'
     ],
-    reasonForRecommendation: 'Matches your dietary restrictions'
+    reasonForRecommendation: 'Perfect base for quick, diabetes-friendly dorm meals'
   },
 ];
 
@@ -201,7 +201,7 @@ const RecommendationsScreen = () => {
     if (!product) return null;
     
     // Custom data based on product ID
-    let ingredients = ['Organic Whole Grain Oats', 'Water', 'Sea Salt', 'Vitamin E'];
+    let ingredients = ['Certified Gluten-Free Oats'];
     let alternativesTo = undefined;
     let nutritionFacts = {
       calories: 150,
@@ -214,33 +214,57 @@ const RecommendationsScreen = () => {
     
     // Set specific data for different products
     switch(product.id) {
-      case '1': // Oats
-        alternativesTo = 'Instant Oatmeal Packets';
+      case '1': // Gluten-Free Oats
+        alternativesTo = 'Regular Instant Oatmeal';
         break;
-      case '2': // Protein Shake
-        ingredients = ['Pea Protein', 'Natural Flavors', 'Monk Fruit Extract', 'MCT Oil'];
+      case '2': // Greek Yogurt
+        ingredients = ['Pasteurized Grade A Milk', 'Live Active Yogurt Cultures'];
         nutritionFacts = {
-          calories: 120,
-          protein: 20,
-          fats: 2,
+          calories: 100,
+          protein: 18,
+          fats: 0,
           carbs: 5,
+          sugar: 4,
+          sodium: 0.07
+        };
+        alternativesTo = 'Flavored Yogurts with Added Sugar';
+        break;
+      case '3': // Almond Flour Crackers
+        ingredients = ['Almond Flour', 'Tapioca Starch', 'Sunflower Oil', 'Sea Salt'];
+        nutritionFacts = {
+          calories: 150,
+          protein: 3,
+          fats: 8,
+          carbs: 16,
           sugar: 0,
+          sodium: 0.18
+        };
+        alternativesTo = 'Wheat-based Crackers';
+        break;
+      case '4': // Chickpea Pasta
+        ingredients = ['Chickpea Flour', 'Tapioca', 'Xanthan Gum', 'Pea Protein'];
+        nutritionFacts = {
+          calories: 190,
+          protein: 11,
+          fats: 3,
+          carbs: 32,
+          sugar: 2,
           sodium: 0.05
         };
+        alternativesTo = 'Traditional Wheat Pasta';
         break;
-      case '3': // Dark Chocolate
-        ingredients = ['Organic Cacao', 'Cocoa Butter', 'Erythritol', 'Stevia Extract'];
+      case '5': // Cauliflower Rice
+        ingredients = ['Cauliflower'];
         nutritionFacts = {
-          calories: 180,
+          calories: 25,
           protein: 2,
-          fats: 12,
-          carbs: 15,
-          sugar: 0,
-          sodium: 0.02
+          fats: 0,
+          carbs: 5,
+          sugar: 2,
+          sodium: 0.03
         };
-        alternativesTo = 'Sugar-Sweetened Chocolate';
+        alternativesTo = 'White Rice';
         break;
-      // Add more cases for other products
     }
     
     return {
