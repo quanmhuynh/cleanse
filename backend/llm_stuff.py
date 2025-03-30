@@ -4,18 +4,18 @@ from dotenv import load_dotenv
 import os
 from pydantic import BaseModel, Field
 from langchain_google_genai import ChatGoogleGenerativeAI
-
-
-llm = ChatGoogleGenerativeAI(
+load_dotenv()
+print(os.getenv("GEMINI_API_KEY"))
+model = ChatGoogleGenerativeAI(
     model="gemini-2.0-flash-lite",
     temperature=0,
     max_tokens=None,
     timeout=None,
     max_retries=2,
     api_key=os.getenv("GEMINI_API_KEY")
-    # other params...
+
 )
-load_dotenv()
+
 
 class ResponseFormatter(BaseModel):
     score: int
@@ -76,7 +76,7 @@ prompt_template = PromptTemplate.from_template(
 
 )
 
-model = ChatOpenAI(model="gpt-4o", temperature=0, api_key=os.getenv("OPENAI_API_KEY"))
+# model = ChatOpenAI(model="gpt-4o", temperature=0, api_key=os.getenv("OPENAI_API_KEY"))
 
 
 def get_llm_response(user_info, food_info):
