@@ -23,14 +23,35 @@ const PreferencesScreen = ({
   const { healthData, updateHealthData, currentSurveyStep, setCompletedSurvey } = useUser();
   const [preferences, setPreferences] = useState(healthData.additionalPreferences || '');
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
     updateHealthData({
       additionalPreferences: preferences,
     });
-    setCompletedSurvey(true);
-    onComplete();
+  
+    try {
+      console.log(healthData)
+      const response = await fetch("http://localhost:8000/add_user", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(healthData)
+      });
+  
+      const result = await response.json();
+  
+      if (!response.ok) {
+        console.error("Server error:", result.detail);
+        return;
+      }
+  
+      setCompletedSurvey(true);
+      onComplete();
+    } catch (error) {
+      console.error("Network error:", error);
+    }
   };
-
+  
   return (
     <KeyboardAvoidingView
       style={styles.container}
