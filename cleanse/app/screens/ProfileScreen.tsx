@@ -7,40 +7,75 @@ import {
   TouchableOpacity, 
   Switch,
   TextInput,
-  Modal
+  Modal,
+  ActivityIndicator
 } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS, SHADOWS } from '../../constants/theme';
 import { useUser } from '../context/UserContext';
+import { api } from '../utils/api';
 
-// Mock statistics data - in a real app would come from tracked scans
-const mockStatistics = {
-  totalScans: 27,
-  averageHealthScore: 68,
+// Define type for history item
+interface HistoryApiItem {
+  upc: string;
+  score: number;
+  reasoning: string;
+  image_url: string;
+  date: string;
+}
+
+// Define type for statistics
+interface UserStatistics {
+  totalScans: number;
+  averageHealthScore: number;
   nutritionAverages: {
     sugar: {
-      amount: '21g',
-      level: 'Medium',
+      amount: string;
+      level: string;
+    };
+    sodium: {
+      amount: string;
+      level: string;
+    };
+    fat: {
+      amount: string;
+      level: string;
+    };
+    protein: {
+      amount: string;
+      level: string;
+    };
+  };
+  mostScannedCategories: {
+    name: string;
+    percentage: number;
+  }[];
+}
+
+// Initial statistics state
+const initialStatistics: UserStatistics = {
+  totalScans: 0,
+  averageHealthScore: 0,
+  nutritionAverages: {
+    sugar: {
+      amount: '0g',
+      level: 'Low',
     },
     sodium: {
-      amount: '420mg',
-      level: 'Medium',
+      amount: '0mg',
+      level: 'Low',
     },
     fat: {
-      amount: '12g',
-      level: 'Medium',
+      amount: '0g',
+      level: 'Low',
     },
     protein: {
-      amount: '15g',
-      level: 'Medium',
+      amount: '0g',
+      level: 'Low',
     },
   },
   mostScannedCategories: [
-    { name: 'Snacks', percentage: 35 },
-    { name: 'Beverages', percentage: 25 },
-    { name: 'Dairy', percentage: 20 },
-    { name: 'Grains', percentage: 10 },
-    { name: 'Other', percentage: 10 },
+    { name: 'No Data', percentage: 100 },
   ],
 };
 
@@ -50,13 +85,136 @@ const ProfileScreen = () => {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [currentField, setCurrentField] = useState<string | null>(null);
   const [tempValue, setTempValue] = useState<string>('');
+  const [statistics, setStatistics] = useState<UserStatistics>(initialStatistics);
+  const [loadingStats, setLoadingStats] = useState(false);
 
   // Effect to ensure we have the latest health data
   useEffect(() => {
     console.log("ProfileScreen: Current user:", currentUser);
     console.log("ProfileScreen: Has selected user:", hasSelectedUser);
     console.log("ProfileScreen: Health data:", healthData);
+    
+    if (currentUser && hasSelectedUser) {
+      fetchUserStatistics();
+    }
   }, [currentUser, hasSelectedUser, healthData]);
+
+  // Fetch user statistics from history
+  const fetchUserStatistics = async () => {
+    if (!currentUser) return;
+    
+    setLoadingStats(true);
+    try {
+      console.log(`Fetching statistics for user: ${currentUser}`);
+      const data = await api.get<HistoryApiItem[]>(`get_history?email=${currentUser}`);
+      
+      // Ensure we have a valid array
+      const historyItems = Array.isArray(data) ? data : [];
+      console.log(`Received ${historyItems.length} history items for statistics`);
+      
+      if (historyItems.length === 0) {
+        setStatistics(initialStatistics);
+        setLoadingStats(false);
+        return;
+      }
+      
+      // Remove duplicates based on UPC
+      const uniqueItems = historyItems.reduce<HistoryApiItem[]>((acc, current) => {
+        const x = acc.find(item => item.upc === current.upc);
+        if (!x) {
+          return acc.concat(current);
+        }
+        return acc;
+      }, []);
+      
+      // Calculate total scans (unique products)
+      const totalScans = uniqueItems.length;
+      
+      // Calculate average health score
+      const totalScore = uniqueItems.reduce((sum, item) => sum + (item.score || 0), 0);
+      const averageHealthScore = totalScans > 0 ? Math.round(totalScore / totalScans) : 0;
+      
+      // Estimate nutrition levels based on average score
+      const sugarLevel = getSugarLevel(averageHealthScore);
+      const sodiumLevel = getSodiumLevel(averageHealthScore);
+      const fatLevel = getFatLevel(averageHealthScore);
+      const proteinLevel = getProteinLevel(averageHealthScore);
+      
+      // Create mock categories based on scan count (could be replaced with real data later)
+      const categories = [
+        { name: 'Packaged Foods', percentage: 35 },
+        { name: 'Beverages', percentage: 25 },
+        { name: 'Snacks', percentage: 20 },
+        { name: 'Dairy', percentage: 15 },
+        { name: 'Other', percentage: 5 },
+      ];
+      
+      // Set the statistics
+      setStatistics({
+        totalScans,
+        averageHealthScore,
+        nutritionAverages: {
+          sugar: {
+            amount: '~20g',
+            level: sugarLevel,
+          },
+          sodium: {
+            amount: '~400mg',
+            level: sodiumLevel,
+          },
+          fat: {
+            amount: '~10g',
+            level: fatLevel,
+          },
+          protein: {
+            amount: '~15g',
+            level: proteinLevel,
+          },
+        },
+        mostScannedCategories: categories,
+      });
+      
+      console.log('User statistics calculated:', {
+        totalScans,
+        averageHealthScore,
+        sugarLevel,
+        sodiumLevel,
+        fatLevel,
+        proteinLevel
+      });
+      
+    } catch (error) {
+      console.error('Error calculating user statistics:', error);
+      setStatistics(initialStatistics);
+    } finally {
+      setLoadingStats(false);
+    }
+  };
+
+  // Helper functions to estimate nutrition levels based on score
+  const getSugarLevel = (score: number): string => {
+    if (score >= 80) return 'Low';
+    if (score >= 50) return 'Medium';
+    return 'High';
+  };
+  
+  const getSodiumLevel = (score: number): string => {
+    if (score >= 70) return 'Low';
+    if (score >= 40) return 'Medium';
+    return 'High';
+  };
+  
+  const getFatLevel = (score: number): string => {
+    if (score >= 75) return 'Low';
+    if (score >= 45) return 'Medium';
+    return 'High';
+  };
+  
+  const getProteinLevel = (score: number): string => {
+    if (score >= 60) return 'High';
+    if (score >= 30) return 'Medium';
+    return 'Low';
+  };
 
   // Function to render nutritional stat
   const renderNutritionStat = (title: string, data: { amount: string, level: string }) => {
@@ -344,34 +502,51 @@ const ProfileScreen = () => {
         <View style={styles.statsCardContainer}>
           <Text style={styles.statsCardTitle}>Your Scan Statistics</Text>
           
-          <View style={styles.statsOverview}>
-            <View style={styles.statOverviewItem}>
-              <Text style={styles.statOverviewValue}>{mockStatistics.totalScans}</Text>
-              <Text style={styles.statOverviewLabel}>Products Scanned</Text>
+          {loadingStats ? (
+            <View style={styles.statsLoadingContainer}>
+              <ActivityIndicator size="large" color={COLORS.primary} />
+              <Text style={styles.statsLoadingText}>Loading statistics...</Text>
             </View>
-            <View style={styles.statOverviewDivider} />
-            <View style={styles.statOverviewItem}>
-              <Text style={styles.statOverviewValue}>{mockStatistics.averageHealthScore}</Text>
-              <Text style={styles.statOverviewLabel}>Avg. Health Score</Text>
-            </View>
-          </View>
-          
-          <Text style={styles.statsSubtitle}>Nutrition Averages</Text>
-          <View style={styles.nutritionStatsContainer}>
-            {renderNutritionStat('Sugar', mockStatistics.nutritionAverages.sugar)}
-            {renderNutritionStat('Sodium', mockStatistics.nutritionAverages.sodium)}
-            {renderNutritionStat('Fat', mockStatistics.nutritionAverages.fat)}
-            {renderNutritionStat('Protein', mockStatistics.nutritionAverages.protein)}
-          </View>
-          
-          <Text style={styles.statsSubtitle}>Most Scanned Categories</Text>
-          <View style={styles.categoriesContainer}>
-            {mockStatistics.mostScannedCategories.map((category, index) => (
-              <React.Fragment key={index}>
-                {renderCategoryBar(category)}
-              </React.Fragment>
-            ))}
-          </View>
+          ) : (
+            <>
+              <View style={styles.statsOverview}>
+                <View style={styles.statOverviewItem}>
+                  <Text style={styles.statOverviewValue}>{statistics.totalScans}</Text>
+                  <Text style={styles.statOverviewLabel}>Products Scanned</Text>
+                </View>
+                <View style={styles.statOverviewDivider} />
+                <View style={styles.statOverviewItem}>
+                  <Text style={styles.statOverviewValue}>{statistics.averageHealthScore}</Text>
+                  <Text style={styles.statOverviewLabel}>Avg. Health Score</Text>
+                </View>
+              </View>
+              
+              <Text style={styles.statsSubtitle}>Nutrition Averages</Text>
+              <View style={styles.nutritionStatsContainer}>
+                {renderNutritionStat('Sugar', statistics.nutritionAverages.sugar)}
+                {renderNutritionStat('Sodium', statistics.nutritionAverages.sodium)}
+                {renderNutritionStat('Fat', statistics.nutritionAverages.fat)}
+                {renderNutritionStat('Protein', statistics.nutritionAverages.protein)}
+              </View>
+              
+              <Text style={styles.statsSubtitle}>Most Scanned Categories</Text>
+              <View style={styles.categoriesContainer}>
+                {statistics.mostScannedCategories.map((category, index) => (
+                  <React.Fragment key={index}>
+                    {renderCategoryBar(category)}
+                  </React.Fragment>
+                ))}
+              </View>
+              
+              <TouchableOpacity 
+                style={styles.refreshButton}
+                onPress={fetchUserStatistics}
+              >
+                <MaterialCommunityIcons name="refresh" size={16} color={COLORS.white} />
+                <Text style={styles.refreshButtonText}>Refresh Statistics</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
 
         <View style={styles.spacer} />
@@ -771,6 +946,38 @@ const styles = StyleSheet.create({
     ...FONTS.medium,
     fontSize: SIZES.medium,
     color: COLORS.white,
+  },
+  statsLoadingContainer: {
+    backgroundColor: COLORS.gray,
+    borderRadius: SIZES.borderRadiusMedium,
+    padding: SIZES.paddingLarge,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 200,
+  },
+  statsLoadingText: {
+    ...FONTS.regular,
+    fontSize: SIZES.medium,
+    color: COLORS.darkGray,
+    marginTop: SIZES.marginMedium,
+  },
+  refreshButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primary,
+    paddingVertical: SIZES.paddingSmall,
+    paddingHorizontal: SIZES.paddingMedium,
+    borderRadius: SIZES.borderRadiusMedium,
+    marginTop: SIZES.marginMedium,
+    alignSelf: 'center',
+    ...SHADOWS.small,
+  },
+  refreshButtonText: {
+    ...FONTS.medium,
+    fontSize: SIZES.small,
+    color: COLORS.white,
+    marginLeft: SIZES.marginSmall,
   },
   spacer: {
     height: 100, // Space for the tab bar

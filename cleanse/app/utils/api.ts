@@ -1,6 +1,46 @@
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 
+// Create a history cache to ensure consistent history data across screens
+interface HistoryCache {
+  [userId: string]: {
+    timestamp: number;
+    data: any[];
+  }
+}
+
+// Cache history data for 5 seconds max to avoid too many API calls
+const historyCache: HistoryCache = {};
+const CACHE_DURATION = 5000; // 5 seconds
+
+// Function to get cached history or fetch new data
+const getCachedHistory = async (userId: string, fetchFn: () => Promise<any[]>): Promise<any[]> => {
+  const now = Date.now();
+  const cachedData = historyCache[userId];
+  
+  // If we have valid cached data, return it
+  if (cachedData && (now - cachedData.timestamp < CACHE_DURATION)) {
+    console.log(`Using cached history data for user ${userId} (${cachedData.data.length} items)`);
+    return cachedData.data;
+  }
+  
+  // Otherwise fetch new data
+  console.log(`Fetching fresh history data for user ${userId}`);
+  try {
+    const data = await fetchFn();
+    // Update cache
+    historyCache[userId] = {
+      timestamp: now,
+      data: data
+    };
+    return data;
+  } catch (error) {
+    console.error('Error fetching history:', error);
+    // Return empty array on error
+    return [];
+  }
+};
+
 /**
  * Determines the appropriate API URL based on platform and environment
  * This handles different scenarios:
@@ -147,18 +187,37 @@ export const api = {
   /**
    * Make a GET request to the API
    */
-  get: <T>(endpoint: string, options: RequestInit = {}) =>
-    apiRequest<T>(endpoint, { ...options, method: 'GET' }),
+  get: <T>(endpoint: string, options: RequestInit = {}) => {
+    // Special handling for history endpoint to use cache
+    if (endpoint.startsWith('get_history')) {
+      const emailMatch = endpoint.match(/email=([^&]+)/);
+      if (emailMatch && emailMatch[1]) {
+        const userId = emailMatch[1];
+        return getCachedHistory(userId, () => 
+          apiRequest<T>(endpoint, { ...options, method: 'GET' }) as Promise<any[]>
+        ) as unknown as Promise<T>;
+      }
+    }
+    
+    return apiRequest<T>(endpoint, { ...options, method: 'GET' });
+  },
   
   /**
    * Make a POST request to the API
    */
-  post: <T>(endpoint: string, data: any, options: RequestInit = {}) =>
-    apiRequest<T>(endpoint, {
+  post: <T>(endpoint: string, data: any, options: RequestInit = {}) => {
+    // When adding history, invalidate the cache for that user
+    if (endpoint === 'add_history' && data.email) {
+      delete historyCache[data.email];
+      console.log(`Invalidated history cache for user ${data.email}`);
+    }
+    
+    return apiRequest<T>(endpoint, {
       ...options,
       method: 'POST',
       body: JSON.stringify(data),
-    }),
+    });
+  },
   
   /**
    * Make a PUT request to the API
@@ -175,6 +234,19 @@ export const api = {
    */
   delete: <T>(endpoint: string, options: RequestInit = {}) =>
     apiRequest<T>(endpoint, { ...options, method: 'DELETE' }),
+    
+  /**
+   * Clear the history cache for a specific user or all users
+   */
+  clearHistoryCache: (userId?: string) => {
+    if (userId) {
+      delete historyCache[userId];
+      console.log(`Manually cleared history cache for user ${userId}`);
+    } else {
+      Object.keys(historyCache).forEach(key => delete historyCache[key]);
+      console.log('Manually cleared all history caches');
+    }
+  }
 };
 
 export default api; 

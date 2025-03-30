@@ -64,6 +64,10 @@ const HistoryScreen = () => {
 
   const onRefresh = async () => {
     setRefreshing(true);
+    // Clear any cached history before fetching
+    if (selectedProfileId) {
+      api.clearHistoryCache(selectedProfileId);
+    }
     await fetchHistoryData();
     setRefreshing(false);
   };
@@ -90,6 +94,7 @@ const HistoryScreen = () => {
       let data: HistoryApiItem[] = [];
       try {
         data = await api.get<HistoryApiItem[]>(`get_history?email=${selectedProfileId}`);
+        console.log('Raw history data received:', JSON.stringify(data));
       } catch (apiError) {
         console.error('API error fetching history:', apiError);
         // Use empty array if API fails
@@ -101,21 +106,25 @@ const HistoryScreen = () => {
       console.log(`Received ${historyItems.length} history items`);
       
       // Transform API data to our app's format - handle empty array case
-      const formattedData: HistoryItem[] = historyItems.map((item, index) => ({
-        id: index.toString(),
-        productName: `Product #${item.upc || 'unknown'}`, // Handle missing UPC
-        brand: 'Unknown Brand', // The API doesn't provide brand yet
-        dateScanned: item.date ? new Date(item.date).toLocaleDateString() : 'Unknown date',
-        rawDate: item.date || '',
-        imageUrl: item.image_url || 'https://cdn-icons-png.flaticon.com/512/3724/3724788.png',
-        healthScore: item.score || 0,
-        nutritionInfo: {
-          sugar: getSugarLevel(item.score || 0),
-          sodium: getSodiumLevel(item.score || 0),
-          fat: getFatLevel(item.score || 0),
-        },
-        upc: item.upc // Add UPC to identify duplicates
-      }));
+      const formattedData: HistoryItem[] = historyItems.map((item, index) => {
+        const formattedItem = {
+          id: index.toString(),
+          productName: `Product #${item.upc || 'unknown'}`, // Handle missing UPC
+          brand: 'Unknown Brand', // The API doesn't provide brand yet
+          dateScanned: item.date ? new Date(item.date).toLocaleDateString() : 'Unknown date',
+          rawDate: item.date || '',
+          imageUrl: item.image_url || 'https://cdn-icons-png.flaticon.com/512/3724/3724788.png',
+          healthScore: item.score || 0,
+          nutritionInfo: {
+            sugar: getSugarLevel(item.score || 0),
+            sodium: getSodiumLevel(item.score || 0),
+            fat: getFatLevel(item.score || 0),
+          },
+          upc: item.upc || 'unknown' // Add UPC to identify duplicates
+        };
+        console.log(`Formatted item ${index}:`, JSON.stringify(formattedItem));
+        return formattedItem;
+      });
       
       // Remove duplicates based on UPC code
       const uniqueItems = formattedData.reduce<HistoryItem[]>((acc, current) => {
@@ -126,6 +135,8 @@ const HistoryScreen = () => {
         return acc;
       }, []);
       
+      console.log(`After deduplication: ${uniqueItems.length} items`);
+      
       // Sort by date (newest first)
       const sortedData = uniqueItems.sort((a, b) => {
         const dateA = new Date(a.rawDate || '').getTime();
@@ -133,6 +144,7 @@ const HistoryScreen = () => {
         return isNaN(dateB) || isNaN(dateA) ? 0 : dateB - dateA;
       });
       
+      console.log(`Setting history data with ${sortedData.length} items`);
       setHistoryData(sortedData);
       console.log(`Loaded ${sortedData.length} unique history items after deduplication`);
     } catch (error) {
@@ -362,6 +374,19 @@ const HistoryScreen = () => {
             <MaterialCommunityIcons name="history" size={48} color={COLORS.mediumGray} />
             <Text style={styles.emptyText}>No history items found</Text>
             <Text style={styles.emptySubText}>Scan products to see them appear here</Text>
+            <Text style={styles.emptySubText}>Items in cache: {historyData.length}</Text>
+            <TouchableOpacity 
+              style={styles.retryButton} 
+              onPress={() => {
+                if (selectedProfileId) {
+                  console.log('Manually refreshing history');
+                  api.clearHistoryCache(selectedProfileId);
+                  onRefresh();
+                }
+              }}
+            >
+              <Text style={styles.retryButtonText}>Refresh</Text>
+            </TouchableOpacity>
           </View>
         ) : (
           <FlatList

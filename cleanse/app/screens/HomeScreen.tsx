@@ -128,9 +128,9 @@ const HomeScreen = () => {
         // Transform API data to our app's format
         const formattedData: HistoryItem[] = historyData.map((item, index) => ({
           id: index.toString(),
-          productName: `Product #${item.upc}`,
+          productName: `Product #${item.upc || 'unknown'}`, // Handle missing UPC
           brand: 'Unknown Brand',
-          dateScanned: new Date(item.date).toLocaleDateString(),
+          dateScanned: item.date ? new Date(item.date).toLocaleDateString() : 'Unknown date',
           imageUrl: item.image_url || 'https://cdn-icons-png.flaticon.com/512/3724/3724788.png',
           healthScore: item.score || 0,
           nutritionInfo: {
@@ -138,7 +138,7 @@ const HomeScreen = () => {
             sodium: getSodiumLevel(item.score || 0),
             fat: getFatLevel(item.score || 0),
           },
-          upc: item.upc // Add UPC to help identify duplicates
+          upc: item.upc || 'unknown' // Add UPC to help identify duplicates
         }));
         
         // Remove duplicates based on UPC code
@@ -265,6 +265,9 @@ const HomeScreen = () => {
         
         // Fetch updated history after successful scan (with a slight delay to ensure DB updates)
         setTimeout(() => {
+          // Clear any cached history before fetching
+          api.clearHistoryCache(selectedProfileId);
+          
           // Only fetch once after a successful scan
           if (!historyLoading) {
             fetchUserHistory();
