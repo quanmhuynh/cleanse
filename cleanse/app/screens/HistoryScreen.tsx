@@ -343,7 +343,7 @@ const styles = StyleSheet.create({
   },
   filterScrollContainer: {
     backgroundColor: COLORS.white,
-    marginHorizontal: SIZES.marginLarge,
+    marginHorizontal: SIZES.xSmall,
     marginTop: 15,
     borderRadius: SIZES.borderRadiusMedium,
     ...SHADOWS.medium,

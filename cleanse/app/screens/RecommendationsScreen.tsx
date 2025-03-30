@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, TextInput } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS, SHADOWS } from '../../constants/theme';
 import { useUser } from '../context/UserContext';
+import ProductDetailModal from '../components/ProductDetailModal';
 
 // Define types
 interface RecommendationCategory {
   id: string;
   label: string;
+  icon: string;
 }
 
 interface RecommendedProduct {
@@ -92,89 +94,211 @@ const mockRecommendedData: RecommendedProduct[] = [
 const RecommendationsScreen = () => {
   const { healthData } = useUser();
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<RecommendedProduct | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
 
   const categories: RecommendationCategory[] = [
-    { id: 'all', label: 'All' },
-    { id: 'alternatives', label: 'Healthier Alternatives' },
-    { id: 'profile', label: 'For Your Profile' },
-    { id: 'trending', label: 'Trending' },
+    { id: 'all', label: 'All Recommendations', icon: 'apps' },
+    { id: 'alternatives', label: 'Healthier Alternatives', icon: 'swap-horizontal' },
+    { id: 'profile', label: 'For Your Profile', icon: 'person' },
+    { id: 'trending', label: 'Trending Products', icon: 'trending-up' },
   ];
 
   // In a real app, this would filter based on actual data and categories
   const getFilteredData = (): RecommendedProduct[] => {
-    // For mock purposes, just return the whole data set
-    return mockRecommendedData;
+    let filtered = mockRecommendedData;
+    
+    // Apply search filter if query exists
+    if (searchQuery.trim()) {
+      filtered = filtered.filter(item => 
+        item.productName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.brand.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+    
+    return filtered;
   };
 
+  // Function to get color based on score
+  const getScoreColor = (score: number): string => {
+    if (score >= 80) return COLORS.success;
+    if (score >= 60) return COLORS.secondary;
+    return COLORS.error;
+  };
+
+  // Modified to show modal first, then set product data
+  const handleViewProduct = (item: RecommendedProduct) => {
+    console.log("View Product clicked for:", item.productName); // Add debug logging
+    setSelectedProduct(item);
+    setModalVisible(true);
+  };
 
   const renderRecommendationItem = ({ item }: { item: RecommendedProduct }) => (
-    <TouchableOpacity style={styles.recommendationCard} activeOpacity={0.7}>
-      <View style={styles.recommendationHeader}>
+    <TouchableOpacity 
+      style={styles.recommendationCard} 
+      activeOpacity={0.7}
+    >
+      <View style={styles.cardHeader}>
         <Image
           source={{ uri: item.imageUrl }}
           style={styles.productImage}
           resizeMode="contain"
         />
+        
         <View style={styles.productInfo}>
           <Text style={styles.productName}>{item.productName}</Text>
           <Text style={styles.brandName}>{item.brand}</Text>
-          <View style={styles.scoreRow}>
-            <MaterialCommunityIcons name="star" size={16} color={COLORS.secondary} />
-            <Text style={styles.scoreText}>{item.healthScore}</Text>
-          </View>
+        </View>
+        
+        <View style={[
+          styles.scoreContainer, 
+          { backgroundColor: getScoreColor(item.healthScore) + '20' }
+        ]}>
+          <Text style={[styles.scoreText, { color: getScoreColor(item.healthScore) }]}>
+            {item.healthScore}
+          </Text>
         </View>
       </View>
 
       <View style={styles.benefitsContainer}>
-        <Text style={styles.benefitsTitle}>Benefits:</Text>
         {item.benefits.map((benefit: string, index: number) => (
           <View key={index} style={styles.benefitRow}>
-            <MaterialCommunityIcons name="check-circle" size={14} color={COLORS.success} />
+            <MaterialCommunityIcons 
+              name="check-circle-outline" 
+              size={16} 
+              color={COLORS.success} 
+              style={styles.benefitIcon} 
+            />
             <Text style={styles.benefitText}>{benefit}</Text>
           </View>
         ))}
       </View>
 
       <View style={styles.reasonContainer}>
-        <Text style={styles.reasonLabel}>Why we recommend this:</Text>
+        <MaterialCommunityIcons 
+          name="lightbulb-outline" 
+          size={16} 
+          color={COLORS.secondary} 
+          style={styles.reasonIcon} 
+        />
         <Text style={styles.reasonText}>{item.reasonForRecommendation}</Text>
       </View>
 
-      <TouchableOpacity style={styles.actionButton}>
-        <Text style={styles.actionButtonText}>View Details</Text>
+      <TouchableOpacity 
+        style={styles.actionButton}
+        onPress={() => handleViewProduct(item)}
+      >
+        <Text style={styles.actionButtonText}>View Product</Text>
+        <Ionicons name="chevron-forward" size={16} color={COLORS.white} />
       </TouchableOpacity>
     </TouchableOpacity>
   );
 
+  // Enhanced product data with more robust implementation
+  const getEnhancedProductData = (product: RecommendedProduct) => {
+    if (!product) return null;
+    
+    // Custom data based on product ID
+    let ingredients = ['Organic Whole Grain Oats', 'Water', 'Sea Salt', 'Vitamin E'];
+    let alternativesTo = undefined;
+    let nutritionFacts = {
+      calories: 150,
+      protein: 5,
+      fats: 3,
+      carbs: 27,
+      sugar: 1,
+      sodium: 0.1
+    };
+    
+    // Set specific data for different products
+    switch(product.id) {
+      case '1': // Oats
+        alternativesTo = 'Instant Oatmeal Packets';
+        break;
+      case '2': // Protein Shake
+        ingredients = ['Pea Protein', 'Natural Flavors', 'Monk Fruit Extract', 'MCT Oil'];
+        nutritionFacts = {
+          calories: 120,
+          protein: 20,
+          fats: 2,
+          carbs: 5,
+          sugar: 0,
+          sodium: 0.05
+        };
+        break;
+      case '3': // Dark Chocolate
+        ingredients = ['Organic Cacao', 'Cocoa Butter', 'Erythritol', 'Stevia Extract'];
+        nutritionFacts = {
+          calories: 180,
+          protein: 2,
+          fats: 12,
+          carbs: 15,
+          sugar: 0,
+          sodium: 0.02
+        };
+        alternativesTo = 'Sugar-Sweetened Chocolate';
+        break;
+      // Add more cases for other products
+    }
+    
+    return {
+      ...product,
+      ingredients,
+      nutritionFacts,
+      alternativesTo
+    };
+  };
+
+  // Handle modal close
+  const handleCloseModal = () => {
+    setModalVisible(false);
+    // Wait for the animation to complete before clearing the product
+    setTimeout(() => {
+      setSelectedProduct(null);
+    }, 300);
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Recommendations</Text>
-        <Text style={styles.subtitle}>
-          Products tailored to your health profile
-        </Text>
+        <Text style={styles.title}>For You</Text>
       </View>
 
-   
-
-      {/* Personalized message based on health data */}
-      <View style={styles.personalizedMessageContainer}>
-        <MaterialCommunityIcons name="lightbulb-on" size={22} color={COLORS.secondary} />
-        <Text style={styles.personalizedMessage}>
-          {healthData.conditions.highBloodPressure 
-            ? "We've selected products that are low in sodium for your blood pressure."
-            : "We've selected products that match your health profile."}
-        </Text>
+      <View style={styles.contentContainer}>
+        {getFilteredData().length > 0 ? (
+          <FlatList
+            data={getFilteredData()}
+            renderItem={renderRecommendationItem}
+            keyExtractor={item => item.id}
+            contentContainerStyle={styles.listContainer}
+            showsVerticalScrollIndicator={false}
+          />
+        ) : (
+          <View style={styles.emptyContainer}>
+            <View style={styles.emptyIconContainer}>
+              <MaterialCommunityIcons name="food-apple" size={60} color={COLORS.primary} />
+            </View>
+            <Text style={styles.emptyTitle}>No recommendations found</Text>
+            <Text style={styles.emptyText}>
+              We'll suggest products based on your preferences and scan history
+            </Text>
+            <TouchableOpacity style={styles.emptyButton}>
+              <Text style={styles.emptyButtonText}>Scan a Product</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
-      {/* Recommendations list */}
-      <FlatList
-        data={getFilteredData()}
-        renderItem={renderRecommendationItem}
-        keyExtractor={item => item.id}
-        contentContainerStyle={styles.recommendationsList}
-        showsVerticalScrollIndicator={false}
-      />
+      {/* Use separate state variables for better control */}
+      {selectedProduct && getEnhancedProductData(selectedProduct) && (
+        <ProductDetailModal
+          product={getEnhancedProductData(selectedProduct)!}
+          visible={modalVisible}
+          onClose={handleCloseModal}
+        />
+      )}
     </View>
   );
 };
@@ -187,11 +311,11 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: SIZES.paddingLarge,
     paddingTop: SIZES.paddingLarge * 3,
-    paddingBottom: SIZES.paddingLarge,
+    paddingBottom: SIZES.paddingLarge * 1.5,
     backgroundColor: COLORS.primary,
-    borderBottomLeftRadius: 25,
-    borderBottomRightRadius: 25,
-    ...SHADOWS.medium,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    ...SHADOWS.large,
   },
   title: {
     ...FONTS.bold,
@@ -199,146 +323,253 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     marginBottom: SIZES.marginSmall,
   },
-  subtitle: {
-    ...FONTS.regular,
-    fontSize: SIZES.medium,
-    color: COLORS.white,
-    opacity: 0.8,
+  contentContainer: {
+    flex: 1,
+    marginBottom: 90, // Space for floating search bar
+    paddingTop: 10,
   },
-  categoriesContainer: {
-    marginTop: SIZES.marginMedium,
-  },
-  categoriesList: {
-    paddingHorizontal: SIZES.paddingLarge,
-  },
-  categoryButton: {
-    paddingVertical: SIZES.paddingSmall,
-    paddingHorizontal: SIZES.paddingMedium,
-    marginRight: SIZES.marginMedium,
-    borderRadius: SIZES.borderRadiusFull,
-    backgroundColor: COLORS.white,
-    ...SHADOWS.small,
-  },
-  selectedCategoryButton: {
-    backgroundColor: COLORS.secondary,
-  },
-  categoryText: {
-    ...FONTS.medium,
-    fontSize: SIZES.small,
-    color: COLORS.text,
-  },
-  selectedCategoryText: {
-    color: COLORS.white,
-  },
+  // Personalized Message Container (styled like filter container)
   personalizedMessageContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: SIZES.marginLarge,
-    marginVertical: SIZES.marginMedium,
-    padding: SIZES.paddingMedium,
     backgroundColor: COLORS.white,
+    marginHorizontal: SIZES.marginSmall,
+    marginTop: 15,
     borderRadius: SIZES.borderRadiusMedium,
-    ...SHADOWS.small,
+    padding: SIZES.paddingMedium,
+    ...SHADOWS.medium,
+    zIndex: 10,
   },
-  personalizedMessage: {
-    ...FONTS.regular,
-    fontSize: SIZES.small,
-    color: COLORS.text,
-    marginLeft: SIZES.marginSmall,
+  messageIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SIZES.marginMedium,
+  },
+  messageTextContainer: {
     flex: 1,
   },
-  recommendationsList: {
-    padding: SIZES.paddingLarge,
-    paddingBottom: 100, // Extra space for the bottom tab bar
+  messageTitle: {
+    ...FONTS.bold,
+    fontSize: SIZES.medium,
+    color: COLORS.text,
+    marginBottom: 4,
+  },
+  messageText: {
+    ...FONTS.regular,
+    fontSize: SIZES.small,
+    color: COLORS.darkGray,
+    lineHeight: 18,
+  },
+  filterScrollContainer: {
+    backgroundColor: COLORS.white,
+    marginHorizontal: SIZES.marginLarge,
+    marginBottom: 15,
+    borderRadius: SIZES.borderRadiusMedium,
+    ...SHADOWS.medium,
+    zIndex: 10,
+  },
+  filterList: {
+    paddingHorizontal: SIZES.paddingMedium,
+    paddingVertical: SIZES.paddingMedium,
+  },
+  filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: SIZES.paddingSmall,
+    paddingHorizontal: SIZES.paddingMedium,
+    borderRadius: SIZES.borderRadiusFull,
+    marginRight: SIZES.marginMedium,
+  },
+  filterButtonActive: {
+    backgroundColor: COLORS.primary,
+  },
+  filterIcon: {
+    marginRight: 6,
+  },
+  filterButtonText: {
+    ...FONTS.medium,
+    fontSize: SIZES.small,
+    color: COLORS.darkGray,
+  },
+  filterButtonTextActive: {
+    color: COLORS.white,
+  },
+  listContainer: {
+    padding: SIZES.paddingMedium,
+    paddingTop: 10, // Reduced to avoid excessive space
   },
   recommendationCard: {
     backgroundColor: COLORS.white,
     borderRadius: SIZES.borderRadiusMedium,
     padding: SIZES.paddingMedium,
     marginBottom: SIZES.marginMedium,
-    ...SHADOWS.small,
+    ...SHADOWS.medium,
   },
-  recommendationHeader: {
+  cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: SIZES.marginMedium,
   },
   productImage: {
-    width: 60,
-    height: 60,
+    width: 50,
+    height: 50,
     borderRadius: SIZES.borderRadiusSmall,
-    backgroundColor: COLORS.lightGray,
+    backgroundColor: COLORS.gray + '30',
   },
   productInfo: {
-    marginLeft: SIZES.marginMedium,
     flex: 1,
+    marginLeft: SIZES.marginMedium,
   },
   productName: {
     ...FONTS.bold,
     fontSize: SIZES.medium,
     color: COLORS.text,
+    marginBottom: 2,
   },
   brandName: {
     ...FONTS.regular,
     fontSize: SIZES.small,
     color: COLORS.darkGray,
-    marginBottom: 4,
   },
-  scoreRow: {
-    flexDirection: 'row',
+  scoreContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
     alignItems: 'center',
   },
   scoreText: {
     ...FONTS.bold,
-    fontSize: SIZES.small,
-    color: COLORS.secondary,
-    marginLeft: 4,
+    fontSize: SIZES.medium,
   },
   benefitsContainer: {
     marginBottom: SIZES.marginMedium,
-  },
-  benefitsTitle: {
-    ...FONTS.medium,
-    fontSize: SIZES.small,
-    color: COLORS.darkGray,
-    marginBottom: SIZES.marginSmall,
+    backgroundColor: COLORS.gray + '20',
+    borderRadius: SIZES.borderRadiusSmall,
+    padding: SIZES.paddingSmall,
   },
   benefitRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 6,
+  },
+  benefitIcon: {
+    marginRight: 8,
   },
   benefitText: {
-    ...FONTS.regular,
+    ...FONTS.medium,
     fontSize: SIZES.small,
     color: COLORS.text,
-    marginLeft: SIZES.marginSmall,
+    flex: 1,
   },
   reasonContainer: {
-    backgroundColor: COLORS.gray,
-    padding: SIZES.paddingSmall,
-    borderRadius: SIZES.borderRadiusSmall,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     marginBottom: SIZES.marginMedium,
+    backgroundColor: COLORS.secondary + '15',
+    borderRadius: SIZES.borderRadiusSmall,
+    padding: SIZES.paddingSmall,
   },
-  reasonLabel: {
-    ...FONTS.medium,
-    fontSize: SIZES.xSmall,
-    color: COLORS.darkGray,
-    marginBottom: 2,
+  reasonIcon: {
+    marginRight: 8,
+    marginTop: 2,
   },
   reasonText: {
     ...FONTS.regular,
     fontSize: SIZES.small,
     color: COLORS.text,
+    flex: 1,
   },
   actionButton: {
+    flexDirection: 'row',
     backgroundColor: COLORS.primary,
-    paddingVertical: SIZES.paddingSmall,
-    paddingHorizontal: SIZES.paddingMedium,
-    borderRadius: SIZES.borderRadiusMedium,
+    paddingVertical: SIZES.paddingMedium,
+    paddingHorizontal: SIZES.paddingLarge,
+    borderRadius: SIZES.borderRadiusFull,
     alignItems: 'center',
+    justifyContent: 'center',
+    ...SHADOWS.small,
   },
   actionButtonText: {
+    ...FONTS.medium,
+    fontSize: SIZES.small,
+    color: COLORS.white,
+    marginRight: 5,
+  },
+  floatingSearchBar: {
+    position: 'absolute',
+    bottom: 20,
+    left: SIZES.paddingLarge,
+    right: SIZES.paddingLarge,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    borderRadius: SIZES.borderRadiusFull,
+    paddingVertical: 14,
+    paddingHorizontal: SIZES.paddingMedium,
+    zIndex: 999,
+    ...SHADOWS.large,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.05)',
+    elevation: 8,
+  },
+  searchIcon: {
+    marginLeft: 5,
+    marginRight: 10,
+    width: 22,
+  },
+  searchInput: {
+    flex: 1,
+    ...FONTS.medium,
+    fontSize: SIZES.medium,
+    color: COLORS.text,
+    padding: 0,
+    height: 24,
+  },
+  clearButton: {
+    padding: 5,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SIZES.paddingLarge,
+    marginTop: 40,
+  },
+  emptyIconContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: COLORS.gray + '40',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: SIZES.marginMedium,
+  },
+  emptyTitle: {
+    ...FONTS.bold,
+    fontSize: SIZES.large,
+    color: COLORS.text,
+    marginBottom: SIZES.marginSmall,
+  },
+  emptyText: {
+    ...FONTS.regular,
+    fontSize: SIZES.small,
+    color: COLORS.mediumGray,
+    textAlign: 'center',
+    marginBottom: SIZES.marginMedium * 1.5,
+  },
+  emptyButton: {
+    backgroundColor: COLORS.primary,
+    paddingVertical: SIZES.paddingMedium,
+    paddingHorizontal: SIZES.paddingLarge,
+    borderRadius: SIZES.borderRadiusFull,
+    ...SHADOWS.small,
+  },
+  emptyButtonText: {
     ...FONTS.medium,
     fontSize: SIZES.small,
     color: COLORS.white,
