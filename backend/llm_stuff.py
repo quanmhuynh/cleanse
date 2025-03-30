@@ -3,6 +3,18 @@ from langchain_core.prompts import PromptTemplate
 from dotenv import load_dotenv
 import os
 from pydantic import BaseModel, Field
+from langchain_google_genai import ChatGoogleGenerativeAI
+
+
+llm = ChatGoogleGenerativeAI(
+    model="gemini-2.0-flash-lite",
+    temperature=0,
+    max_tokens=None,
+    timeout=None,
+    max_retries=2,
+    api_key=os.getenv("GEMINI_API_KEY")
+    # other params...
+)
 load_dotenv()
 
 class ResponseFormatter(BaseModel):
@@ -57,6 +69,7 @@ prompt_template = PromptTemplate.from_template(
     ---
 
     Assign a score between 0 and 100 rating how healthy this food is for the patient, and include your concise reasoning below.
+    Be impersonable.
 
     """
 

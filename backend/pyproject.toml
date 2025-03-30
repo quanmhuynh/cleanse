@@ -9,6 +9,7 @@ dependencies = [
     "dotenv>=0.9.9",
     "fastapi[standard]>=0.115.12",
     "firecrawl>=1.15.0",
+    "langchain-google-genai>=2.1.2",
     "langchain-openai>=0.3.11",
     "openai>=1.69.0",
     "openfoodfacts>=2.5.0",

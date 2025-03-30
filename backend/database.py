@@ -43,10 +43,25 @@ class DatabaseManager:
                 reasoning TEXT,
                 image_url TEXT,
                 date TEXT,
+                product_name TEXT,
                 FOREIGN KEY (email) REFERENCES Users(email)
             );
             """
         )
+        
+        # Check if product_name column already exists in History table
+        cursor.execute("PRAGMA table_info(History)")
+        columns = [column[1] for column in cursor.fetchall()]
+        
+        # Add product_name column if it doesn't exist
+        if "product_name" not in columns:
+            cursor.execute(
+                """
+                ALTER TABLE History
+                ADD COLUMN product_name TEXT;
+                """
+            )
+            
         self.conn.commit()
 
     def add_user(
@@ -145,6 +160,7 @@ class DatabaseManager:
         reasoning: str,
         image_url: str,
         date: str = None,
+        product_name: str = None,
     ):
         """
         Add a new history entry to the History table.
@@ -157,16 +173,17 @@ class DatabaseManager:
             image_url: URL of the related image.
             date: (Optional) The date of the entry in ISO format.
                   If not provided, the current datetime is used.
+            product_name: (Optional) Name of the product.
         """
         if date is None:
             date = datetime.now().isoformat()
         cursor = self.conn.cursor()
         cursor.execute(
             """
-            INSERT INTO History (email, upc, score, reasoning, image_url, date)
-            VALUES (?, ?, ?, ?, ?, ?);
+            INSERT INTO History (email, upc, score, reasoning, image_url, date, product_name)
+            VALUES (?, ?, ?, ?, ?, ?, ?);
             """,
-            (email, upc, score, reasoning, image_url, date),
+            (email, upc, score, reasoning, image_url, date, product_name),
         )
         self.conn.commit()
 

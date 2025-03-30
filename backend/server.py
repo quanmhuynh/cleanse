@@ -8,6 +8,7 @@ from image_and_name import scrape_image
 from database import DatabaseManager  # Ensure this module is in your project
 from llm_stuff import get_llm_response
 from open_food_api import get_product_info
+from recommendation import get_food_recommendations, enrich_food_data
 
 # Create a single global instance of the DatabaseManager.
 db_manager = DatabaseManager("example.db")
@@ -40,6 +41,10 @@ class UserModel(BaseModel):
 class HistoryInputModel(BaseModel):
     email: str
     upc: str
+
+
+class RecommendationRequestModel(BaseModel):
+    email: str
 
 
 @app.post("/add_user")
@@ -84,6 +89,7 @@ def add_history(history: HistoryInputModel):
                                 "score": entry['score'],
                                 "reasoning": entry['reasoning'],
                                 "image_url": entry['image_url'],
+                                "product_name": entry.get('product_name', "Unknown Product")
                             }
                     except Exception as e:
                         print(f"Error parsing date for existing entry: {e}")
@@ -92,6 +98,9 @@ def add_history(history: HistoryInputModel):
         # Retrieve food information using the provided UPC.
         food_info = get_product_info(history.upc)
         print(f"Retrieved food info: {food_info}")
+        
+        # Get product name from food info
+        product_name = food_info.get("product_name", "Unknown Product")
         
         # Retrieve user details from the database using the provided email.
         user_info = db_manager.get_user(history.email)
@@ -149,37 +158,28 @@ def add_history(history: HistoryInputModel):
         print(f"LLM response: {llm_response}")
 
         # Call scrape_image to get the image URL from the UPC.
-        try:
-            image_url = scrape_image(history.upc)
-            print(f"Image URL: {image_url}")
-        except Exception as img_error:
-            print(f"Error getting image: {str(img_error)}")
-            # Fallback to a default image
-            image_url = "https://cdn-icons-png.flaticon.com/512/3724/3724788.png"
+        image_url = scrape_image(history.upc)
 
         # Automatically set the current date and time (in ISO format).
         current_date = datetime.now().isoformat()
 
-        # Try to add the history but don't fail if it doesn't work
-        try:
-            db_manager.add_history(
-                email=history.email,
-                upc=history.upc,
-                score=llm_response.score,
-                reasoning=llm_response.reasoning,
-                image_url=image_url,
-                date=current_date,
-            )
-            print(f"History added successfully for {history.email}")
-        except Exception as history_error:
-            print(f"Warning: Could not add history record: {str(history_error)}")
-            # Continue even if we can't save the history
-
-        # Return the LLM response even if we couldn't save history
+        # Store the history entry in the database
+        db_manager.add_history(
+            email=history.email,
+            upc=history.upc,
+            score=llm_response.score,
+            reasoning=llm_response.reasoning,
+            image_url=image_url,
+            date=current_date,
+            product_name=product_name,
+        )
+        
+        # Return the response
         result = {
             "score": llm_response.score,
             "reasoning": llm_response.reasoning,
             "image_url": image_url,
+            "product_name": product_name,
         }
         print(f"Returning result: {result}")
         return result
@@ -190,7 +190,8 @@ def add_history(history: HistoryInputModel):
         return {
             "score": 50,
             "reasoning": f"Error processing product: {str(e)}. Please try again.",
-            "image_url": "https://cdn-icons-png.flaticon.com/512/1828/1828843.png", 
+            "image_url": "https://cdn-icons-png.flaticon.com/512/1828/1828843.png",
+            "product_name": "Unknown Product" 
         }
 
 
@@ -214,20 +215,35 @@ def get_users():
     return users
 
 
-@app.get("/get_user")
-def get_user(email: str):
+@app.post("/get_recommendations")
+def get_recommendations(request: RecommendationRequestModel):
     """
-    Retrieve a specific user from the database by email.
-    Returns None if the user is not found, with a 200 status code.
+    Generate food recommendations for a user based on their past scans.
+    Returns the top 3 healthiest foods for the user with explanations.
     """
-    print(f"Looking up user with email: {email}")
-    user = db_manager.get_user(email)
-    if not user:
-        print(f"No user found for email: {email}")
-        # Return None with a 200 status code, not 404
-        return None
-    print(f"User found: {user}")
-    return user
+    try:
+        # Get user information
+        user_info = db_manager.get_user(request.email)
+        if not user_info:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Get user history
+        history_items = db_manager.get_user_history(request.email)
+        if not history_items or len(history_items) < 2:
+            raise HTTPException(status_code=404, detail="Not enough history found to make recommendations. Please scan at least 2 items.")
+        
+        # Add product names and other missing data to history items
+        enriched_history = enrich_food_data(history_items)
+        
+        # Get recommendations
+        recommendations = get_food_recommendations(user_info, enriched_history)
+        
+        return {
+            "recommendations": recommendations.recommendations
+        }
+    except Exception as e:
+        print(f"ERROR in get_recommendations: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error generating recommendations: {str(e)}")
 
 
 if __name__ == "__main__":
