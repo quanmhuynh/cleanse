@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { useUser } from '../context/UserContext';
 import { COLORS, SIZES, FONTS, SHADOWS } from '../../constants/theme';
+import { api } from '../utils/api';
 
 // Define types for our product data
 interface ProductWarning {
@@ -52,6 +53,13 @@ interface ProductData {
 const recentScansData: HistoryItem[] = [
 ];
 
+// Define interface for API response
+interface ApiResponse {
+  score: number;
+  reasoning: string;
+  image_url: string;
+}
+
 // Function to get color based on score
 const getScoreColor = (score: number): string => {
   if (score >= 70) return COLORS.success;
@@ -61,6 +69,7 @@ const getScoreColor = (score: number): string => {
 
 const HomeScreen = () => {
   const router = useRouter();
+  const { selectedProfileId, hasSelectedProfile } = useUser();
   // Camera permissions state
   const [permission, requestPermission] = useCameraPermissions();
   // State to store scanned barcode info
@@ -70,43 +79,200 @@ const HomeScreen = () => {
   const [scanning, setScanning] = useState(true);
   // Loading state
   const [loading, setLoading] = useState(false);
-  // Mock Product data (in a real app, this would come from an API)
+  // Product data from API
   const [product, setProduct] = useState<ProductData | null>(null);
+  // State for recent scans
+  const [recentScans, setRecentScans] = useState<HistoryItem[]>([]);
+  // Loading state for history
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  // Fetch user's scan history when profile changes or after successful scan
+  useEffect(() => {
+    if (selectedProfileId) {
+      fetchUserHistory();
+    }
+  }, [selectedProfileId]);
+
+  // Log the selected profile when it changes
+  useEffect(() => {
+    console.log(`HomeScreen: Current selectedProfileId: ${selectedProfileId}`);
+    console.log(`HomeScreen: hasSelectedProfile: ${hasSelectedProfile}`);
+  }, [selectedProfileId, hasSelectedProfile]);
+
+  // Function to fetch user history from API
+  const fetchUserHistory = async () => {
+    if (!selectedProfileId) return;
+    
+    setHistoryLoading(true);
+    try {
+      console.log(`Fetching history for user: ${selectedProfileId}`);
+      const data = await api.get<any[]>(`get_history?email=${selectedProfileId}`);
+      
+      if (Array.isArray(data) && data.length > 0) {
+        // Transform API data to our app's format
+        const formattedData: HistoryItem[] = data.map((item, index) => ({
+          id: index.toString(),
+          productName: `Product #${item.upc}`,
+          brand: 'Unknown Brand',
+          dateScanned: new Date(item.date).toLocaleDateString(),
+          imageUrl: item.image_url,
+          healthScore: item.score,
+          nutritionInfo: {
+            sugar: getSugarLevel(item.score),
+            sodium: getSodiumLevel(item.score),
+            fat: getFatLevel(item.score),
+          }
+        }));
+        
+        // Sort by date (newest first) and take the most recent 5
+        const sortedData = formattedData.sort((a, b) => 
+          new Date(b.dateScanned).getTime() - new Date(a.dateScanned).getTime()
+        );
+        
+        const recentItems = sortedData.slice(0, 5);
+        setRecentScans(recentItems);
+        console.log(`Loaded ${recentItems.length} recent scans`);
+      } else {
+        console.log('No history found for this user');
+        setRecentScans([]);
+      }
+    } catch (error) {
+      console.error('Error fetching user history:', error);
+      setRecentScans([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  // Helper functions to estimate nutrition levels based on score
+  const getSugarLevel = (score: number): string => {
+    if (score >= 80) return 'Low';
+    if (score >= 50) return 'Medium';
+    return 'High';
+  };
+  
+  const getSodiumLevel = (score: number): string => {
+    if (score >= 70) return 'Low';
+    if (score >= 40) return 'Medium';
+    return 'High';
+  };
+  
+  const getFatLevel = (score: number): string => {
+    if (score >= 75) return 'Low';
+    if (score >= 45) return 'Medium';
+    return 'High';
+  };
 
   // Handle barcode scanning result
   const handleBarcodeScanned = ({ type, data }: BarcodeScanningResult) => {
     if (scanning) {
+      console.log(`Barcode scanned: ${data} (${type})`);
+      console.log(`Current user: ${selectedProfileId}, hasProfile: ${hasSelectedProfile}`);
+      
+      // Set scanning state to prevent duplicate scans
+      setScanning(false);
       setScannedData(data);
       setScannedType(type);
-      setScanning(false);
       setLoading(true);
       
-      // Simulate API call to get product information
-      setTimeout(() => {
-        // Mock product data
-        setProduct({
-          name: "Organic Granola",
-          brand: "Nature's Best",
-          image: "https://cdn-icons-png.flaticon.com/512/3724/3724788.png",
-          healthScore: 82,
-          nutritionalInfo: {
-            calories: "220kcal",
-            sugar: "12g",
-            sodium: "15mg",
-            protein: "5g",
-            fat: "8g"
-          },
-          warnings: [
-            "Contains nuts and seeds",
-            "May contain traces of milk"
-          ],
-          recommendations: [
-            "Good source of fiber",
-            "Low sodium"
-          ]
-        });
+      // Check if we have a selected profile
+      if (!selectedProfileId) {
+        console.error('No profile selected');
         setLoading(false);
-      }, 2000);
+        setProduct({
+          name: "Error scanning product",
+          brand: "",
+          image: "https://cdn-icons-png.flaticon.com/512/1828/1828843.png",
+          healthScore: 0,
+          nutritionalInfo: {
+            calories: "N/A",
+            sugar: "N/A",
+            sodium: "N/A",
+            protein: "N/A",
+            fat: "N/A"
+          },
+          warnings: ["No user profile selected."],
+          recommendations: ["Please select a profile before scanning."]
+        });
+        return;
+      }
+      
+      console.log(`Scanning barcode: ${data} for user: ${selectedProfileId}`);
+      
+      // Use the API to get product information based on UPC
+      api.post<ApiResponse>('add_history', { 
+        email: selectedProfileId, // Use the actual profile ID
+        upc: data 
+      })
+      .then(response => {
+        console.log("API Response received:", response);
+        
+        // Verify that we received a valid response
+        if (!response || typeof response !== 'object') {
+          throw new Error("Invalid response from server");
+        }
+        
+        // Extract values with defaults for missing data
+        const score = response.score !== undefined ? response.score : 50;
+        const reasoning = response.reasoning || "No specific recommendations available";
+        const imageUrl = response.image_url || "https://cdn-icons-png.flaticon.com/512/3724/3724788.png";
+        
+        // Format the response into our ProductData format
+        setProduct({
+          name: `Product (UPC: ${data})`, // Include UPC in the name
+          brand: "Unknown Brand",
+          image: imageUrl,
+          healthScore: score,
+          nutritionalInfo: {
+            calories: "N/A",
+            sugar: "N/A",
+            sodium: "N/A",
+            protein: "N/A",
+            fat: "N/A"
+          },
+          warnings: [],
+          recommendations: [reasoning]
+        });
+        
+        // Fetch updated history after successful scan (with a slight delay to ensure DB updates)
+        setTimeout(() => {
+          fetchUserHistory();
+        }, 500);
+        
+        setLoading(false);
+      })
+      .catch(error => {
+        console.error('Error fetching product data:', error);
+        setLoading(false);
+        
+        // Provide more specific user feedback based on the error
+        let errorMessage = "Failed to retrieve product information.";
+        let recommendation = "Please try scanning again.";
+        
+        if (error.message && error.message.includes("User with email")) {
+          errorMessage = "Your user profile could not be found on the server.";
+          recommendation = "Please complete your profile setup first.";
+        } else if (error.message && error.message.includes("Network")) {
+          errorMessage = "Network connection issue.";
+          recommendation = "Please check your internet connection and try again.";
+        }
+        
+        setProduct({
+          name: "Error scanning product",
+          brand: "",
+          image: "https://cdn-icons-png.flaticon.com/512/1828/1828843.png",
+          healthScore: 0,
+          nutritionalInfo: {
+            calories: "N/A",
+            sugar: "N/A",
+            sodium: "N/A",
+            protein: "N/A",
+            fat: "N/A"
+          },
+          warnings: [errorMessage],
+          recommendations: [recommendation]
+        });
+      });
     }
   };
 
@@ -253,30 +419,6 @@ const HomeScreen = () => {
     return null;
   };
 
-  // Render a recent scan item
-  const renderRecentScanItem = (item: HistoryItem) => (
-    <TouchableOpacity 
-      key={item.id}
-      style={styles.recentScanItem}
-      activeOpacity={0.7}
-    >
-      <Image 
-        source={{ uri: item.imageUrl }} 
-        style={styles.recentScanImage}
-        resizeMode="contain"
-      />
-      <View style={styles.recentScanInfo}>
-        <Text style={styles.recentScanName} numberOfLines={1}>{item.productName}</Text>
-        <Text style={styles.recentScanBrand} numberOfLines={1}>{item.brand}</Text>
-      </View>
-      <View style={[styles.recentScanScore, { backgroundColor: getScoreColor(item.healthScore) + '20' }]}>
-        <Text style={[styles.recentScanScoreText, { color: getScoreColor(item.healthScore) }]}>
-          {item.healthScore}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
-
   // Main render for home screen with integrated camera scanner
   const renderHomeContent = () => {
     return (
@@ -319,9 +461,35 @@ const HomeScreen = () => {
             </TouchableOpacity>
           </View>
           
-          {recentScansData.length > 0 ? (
+          {historyLoading ? (
+            <View style={styles.loadingHistoryContainer}>
+              <MaterialCommunityIcons name="loading" size={24} color={COLORS.primary} />
+              <Text style={styles.loadingHistoryText}>Loading scan history...</Text>
+            </View>
+          ) : recentScans.length > 0 ? (
             <View style={styles.recentScansList}>
-              {recentScansData.map(item => renderRecentScanItem(item))}
+              {recentScans.map(item => (
+                <TouchableOpacity 
+                  key={item.id}
+                  style={styles.recentScanItem}
+                  activeOpacity={0.7}
+                >
+                  <Image 
+                    source={{ uri: item.imageUrl }} 
+                    style={styles.recentScanImage}
+                    resizeMode="contain"
+                  />
+                  <View style={styles.recentScanInfo}>
+                    <Text style={styles.recentScanName} numberOfLines={1}>{item.productName}</Text>
+                    <Text style={styles.recentScanBrand} numberOfLines={1}>{item.brand}</Text>
+                  </View>
+                  <View style={[styles.recentScanScore, { backgroundColor: getScoreColor(item.healthScore) + '20' }]}>
+                    <Text style={[styles.recentScanScoreText, { color: getScoreColor(item.healthScore) }]}>
+                      {item.healthScore}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
             </View>
           ) : (
             <View style={styles.emptyScansContainer}>
@@ -724,6 +892,22 @@ const styles = StyleSheet.create({
     ...FONTS.bold,
     fontSize: SIZES.medium,
     color: COLORS.white,
+  },
+  loadingHistoryContainer: {
+    backgroundColor: COLORS.white,
+    borderRadius: SIZES.borderRadiusMedium,
+    padding: SIZES.paddingMedium,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...SHADOWS.small,
+    flexDirection: 'row',
+    height: 120,
+  },
+  loadingHistoryText: {
+    ...FONTS.regular,
+    fontSize: SIZES.medium,
+    color: COLORS.darkGray,
+    marginLeft: SIZES.marginSmall,
   },
 });
 

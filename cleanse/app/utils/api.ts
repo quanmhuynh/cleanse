@@ -52,32 +52,64 @@ export const apiRequest = async <T>(
 ): Promise<T> => {
   const url = `${API_URL}/${endpoint}`;
   
+  console.log(`Making API request to: ${url}`, {
+    method: options.method || 'GET',
+    headers: options.headers
+  });
+  
   const defaultHeaders = {
     'Content-Type': 'application/json',
   };
   
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      ...defaultHeaders,
-      ...options.headers,
-    },
-  });
-  
-  // Handle response
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(
-      errorData.detail || `API error: ${response.status} ${response.statusText}`
-    );
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        ...defaultHeaders,
+        ...options.headers,
+      },
+    });
+    
+    console.log(`Response status: ${response.status}`);
+    
+    // Special case for get_user endpoint: if it returns 404, return null instead of throwing
+    if (!response.ok) {
+      // Check if this is a get_user 404 error
+      if (endpoint.startsWith('get_user') && response.status === 404) {
+        console.log('User not found, returning null');
+        return null as T;
+      }
+      
+      try {
+        const errorData = await response.json();
+        console.log('Error response:', errorData);
+        throw new Error(
+          errorData.detail || `API error: ${response.status} ${response.statusText}`
+        );
+      } catch (jsonError) {
+        // Couldn't parse the error response
+        throw new Error(`API error: ${response.status} ${response.statusText}`);
+      }
+    }
+    
+    // For 204 No Content responses
+    if (response.status === 204) {
+      console.log('Returning empty object for 204 response');
+      return {} as T;
+    }
+    
+    try {
+      const jsonData = await response.json();
+      console.log('Successful response data type:', typeof jsonData);
+      return jsonData;
+    } catch (jsonError) {
+      console.error('Error parsing JSON response:', jsonError);
+      throw new Error('Unable to parse server response');
+    }
+  } catch (fetchError) {
+    console.error('Fetch error:', fetchError);
+    throw fetchError;
   }
-  
-  // For 204 No Content responses
-  if (response.status === 204) {
-    return {} as T;
-  }
-  
-  return response.json();
 };
 
 // API wrapper functions for common operations

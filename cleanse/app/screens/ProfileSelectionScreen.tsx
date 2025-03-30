@@ -12,6 +12,8 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, SIZES, FONTS, SHADOWS } from '../../constants/theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { api } from '../utils/api';
+import { useUser } from '../context/UserContext';
 
 interface Profile {
   id: string;
@@ -69,31 +71,56 @@ const ProfileSelectionScreen = ({ onProfileSelect }: ProfileSelectionScreenProps
         createdAt: new Date().toISOString(),
       };
 
+      console.log(`Creating new profile: ${newProfile.id} (${newUsername})`);
+
+      // Create basic health data for this profile
+      const emptyHealthData = {
+        age: null,
+        weight: null,
+        height: null,
+        gender: null,
+        conditions: {
+          highBloodPressure: false,
+          diabetes: false,
+          heartDisease: false,
+          kidneyDisease: false,
+          pregnant: false,
+          cancer: false,
+          dietaryRestrictions: [],
+          otherConditions: [],
+        },
+        additionalPreferences: '',
+      };
+
       // Create an empty health data object for this profile
       await AsyncStorage.setItem(
         `userData_${newProfile.id}`, 
         JSON.stringify({
           completedSurvey: false,
-          healthData: {
-            age: null,
-            weight: null,
-            height: null,
-            gender: null,
-            conditions: {
-              highBloodPressure: false,
-              diabetes: false,
-              heartDisease: false,
-              kidneyDisease: false,
-              pregnant: false,
-              cancer: false,
-              dietaryRestrictions: [],
-              otherConditions: [],
-            },
-            additionalPreferences: '',
-          },
+          healthData: emptyHealthData,
           currentSurveyStep: 1,
         })
       );
+
+      // Create user on server
+      try {
+        console.log('Creating user on server...');
+        const apiUserData = {
+          email: newProfile.id,
+          height: 170.0,
+          weight: 70.0,
+          age: 30,
+          physical_activity: "Moderate",
+          gender: "not_specified",
+          comorbidities: [],
+          preferences: "No specific preferences",
+        };
+        
+        await api.post('add_user', apiUserData);
+        console.log('User created successfully on server');
+      } catch (apiError) {
+        console.error('Failed to create user on server, but proceeding with local profile', apiError);
+      }
 
       // Update the profile list
       const updatedProfiles = [...profiles, newProfile];

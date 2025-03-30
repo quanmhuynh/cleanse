@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, TextInput } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, TextInput, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS, SHADOWS } from '../../constants/theme';
+import { api } from '../utils/api';
+import { useUser } from '../context/UserContext';
 
 // Define types
 interface NutritionInfo {
@@ -15,6 +17,7 @@ interface HistoryItem {
   productName: string;
   brand: string;
   dateScanned: string;
+  rawDate?: string;
   imageUrl: string;
   healthScore: number;
   nutritionInfo: NutritionInfo;
@@ -26,100 +29,24 @@ interface FilterOption {
   icon: string;
 }
 
-// Mock data for history items - in a real app this would come from a database or storage
-const mockHistoryData: HistoryItem[] = [
-  {
-    id: '1',
-    productName: 'Organic Granola',
-    brand: 'Nature\'s Path',
-    dateScanned: '2023-10-15',
-    imageUrl: 'https://cdn-icons-png.flaticon.com/512/3724/3724788.png',
-    healthScore: 85,
-    nutritionInfo: {
-      sugar: 'Low',
-      sodium: 'Medium',
-      fat: 'Low',
-    }
-  },
-  {
-    id: '2',
-    productName: 'Chocolate Chip Cookies',
-    brand: 'Sweet Treats',
-    dateScanned: '2023-10-12',
-    imageUrl: 'https://cdn-icons-png.flaticon.com/512/3800/3800024.png',
-    healthScore: 45,
-    nutritionInfo: {
-      sugar: 'High',
-      sodium: 'Low',
-      fat: 'High',
-    }
-  },
-  {
-    id: '3',
-    productName: 'Almond Milk',
-    brand: 'Pure Harvest',
-    dateScanned: '2023-10-10',
-    imageUrl: 'https://cdn-icons-png.flaticon.com/512/3348/3348089.png',
-    healthScore: 90,
-    nutritionInfo: {
-      sugar: 'Low',
-      sodium: 'Low',
-      fat: 'Low',
-    }
-  },
-  {
-    id: '4',
-    productName: 'Potato Chips',
-    brand: 'Crunchy Co',
-    dateScanned: '2023-10-08',
-    imageUrl: 'https://cdn-icons-png.flaticon.com/512/3076/3076034.png',
-    healthScore: 30,
-    nutritionInfo: {
-      sugar: 'Low',
-      sodium: 'High',
-      fat: 'High',
-    }
-  },
-  {
-    id: '5',
-    productName: 'Greek Yogurt',
-    brand: 'Dairy Delights',
-    dateScanned: '2023-10-05',
-    imageUrl: 'https://cdn-icons-png.flaticon.com/512/2215/2215301.png',
-    healthScore: 88,
-    nutritionInfo: {
-      sugar: 'Medium',
-      sodium: 'Low',
-      fat: 'Medium',
-    }
-  },
-];
-
-// Function to get color based on score
-const getScoreColor = (score: number): string => {
-  if (score >= 70) return COLORS.success;
-  if (score >= 40) return COLORS.secondary;
-  return COLORS.error;
-};
-
-// Function to get label based on level
-const getNutritionLabel = (level: string): { color: string, icon: 'checkbox-marked-circle' | 'alert-circle' | 'close-circle' | 'information' } => {
-  switch (level) {
-    case 'Low':
-      return { color: COLORS.success, icon: 'checkbox-marked-circle' };
-    case 'Medium':
-      return { color: COLORS.secondary, icon: 'alert-circle' };
-    case 'High':
-      return { color: COLORS.error, icon: 'close-circle' };
-    default:
-      return { color: COLORS.darkGray, icon: 'information' };
-  }
-};
+// Interface for API response
+interface HistoryApiItem {
+  upc: string;
+  score: number;
+  reasoning: string;
+  image_url: string;
+  date: string;
+}
 
 const HistoryScreen = () => {
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [historyData, setHistoryData] = useState<HistoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { selectedProfileId } = useUser();
+  const [refreshing, setRefreshing] = useState(false);
 
   const filterOptions: FilterOption[] = [
     { id: 'all', label: 'All Items', icon: 'apps' },
@@ -128,8 +55,107 @@ const HistoryScreen = () => {
     { id: 'unhealthy', label: 'Unhealthy', icon: 'close-circle' },
   ];
 
+  useEffect(() => {
+    fetchHistoryData();
+  }, [selectedProfileId]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchHistoryData();
+    setRefreshing(false);
+  };
+
+  const fetchHistoryData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      if (!selectedProfileId) {
+        setError('No profile selected');
+        setLoading(false);
+        return;
+      }
+      
+      console.log(`Fetching history for user: ${selectedProfileId}`);
+      const data = await api.get<HistoryApiItem[]>(`get_history?email=${selectedProfileId}`);
+      
+      // Data will always be an array (empty if no history)
+      // Transform API data to our app's format
+      const formattedData: HistoryItem[] = Array.isArray(data) ? data.map((item, index) => ({
+        id: index.toString(),
+        productName: `Product #${item.upc}`, // The API doesn't provide product name yet
+        brand: 'Unknown Brand', // The API doesn't provide brand yet
+        dateScanned: new Date(item.date).toLocaleDateString(),
+        // Store the actual date for sorting
+        rawDate: item.date,
+        imageUrl: item.image_url,
+        healthScore: item.score,
+        nutritionInfo: {
+          sugar: getSugarLevel(item.score),
+          sodium: getSodiumLevel(item.score),
+          fat: getFatLevel(item.score),
+        }
+      })) : [];
+      
+      // Sort by date (newest first)
+      const sortedData = formattedData.sort((a, b) => 
+        new Date(b.rawDate || '').getTime() - new Date(a.rawDate || '').getTime()
+      );
+      
+      setHistoryData(sortedData);
+      console.log(`Loaded ${sortedData.length} history items`);
+    } catch (error) {
+      console.error('Error fetching history:', error);
+      // Don't set error for empty history, just show empty state
+      setHistoryData([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Helper functions to estimate nutrition levels based on score 
+  // (these are placeholder functions since the API doesn't provide detailed nutrition info yet)
+  const getSugarLevel = (score: number): string => {
+    if (score >= 80) return 'Low';
+    if (score >= 50) return 'Medium';
+    return 'High';
+  };
+  
+  const getSodiumLevel = (score: number): string => {
+    if (score >= 70) return 'Low';
+    if (score >= 40) return 'Medium';
+    return 'High';
+  };
+  
+  const getFatLevel = (score: number): string => {
+    if (score >= 75) return 'Low';
+    if (score >= 45) return 'Medium';
+    return 'High';
+  };
+
+  // Function to get color based on score
+  const getScoreColor = (score: number): string => {
+    if (score >= 70) return COLORS.success;
+    if (score >= 40) return COLORS.secondary;
+    return COLORS.error;
+  };
+
+  // Function to get label based on level
+  const getNutritionLabel = (level: string): { color: string, icon: 'checkbox-marked-circle' | 'alert-circle' | 'close-circle' | 'information' } => {
+    switch (level) {
+      case 'Low':
+        return { color: COLORS.success, icon: 'checkbox-marked-circle' };
+      case 'Medium':
+        return { color: COLORS.secondary, icon: 'alert-circle' };
+      case 'High':
+        return { color: COLORS.error, icon: 'close-circle' };
+      default:
+        return { color: COLORS.darkGray, icon: 'information' };
+    }
+  };
+
   const getFilteredData = (): HistoryItem[] => {
-    let filtered = mockHistoryData;
+    let filtered = historyData;
     
     // Apply category filter
     switch (selectedFilter) {
@@ -287,31 +313,37 @@ const HistoryScreen = () => {
           />
         </View>
 
-        {getFilteredData().length > 0 ? (
-          <FlatList
-            data={getFilteredData()}
-            renderItem={renderHistoryItem}
-            keyExtractor={item => item.id}
-            contentContainerStyle={styles.listContainer}
-            showsVerticalScrollIndicator={false}
-          />
-        ) : (
-          <View style={styles.emptyContainer}>
-            <View style={styles.emptyIconContainer}>
-              <MaterialCommunityIcons name="history" size={60} color={COLORS.primary} />
-            </View>
-            <Text style={styles.emptyTitle}>No items found</Text>
-            <Text style={styles.emptyText}>
-              Items you scan will appear here for future reference
-            </Text>
-            <TouchableOpacity style={styles.emptyButton}>
-              <Text style={styles.emptyButtonText}>Scan a Product</Text>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+            <Text style={styles.loadingText}>Loading history...</Text>
+          </View>
+        ) : error ? (
+          <View style={styles.errorContainer}>
+            <MaterialCommunityIcons name="alert-circle-outline" size={48} color={COLORS.error} />
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={fetchHistoryData}>
+              <Text style={styles.retryButtonText}>Retry</Text>
             </TouchableOpacity>
           </View>
+        ) : getFilteredData().length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <MaterialCommunityIcons name="history" size={48} color={COLORS.mediumGray} />
+            <Text style={styles.emptyText}>No history items found</Text>
+            <Text style={styles.emptySubText}>Scan products to see them appear here</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={getFilteredData()}
+            keyExtractor={(item) => item.id}
+            renderItem={renderHistoryItem}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+          />
         )}
       </View>
-
-     
     </View>
   );
 };
@@ -510,8 +542,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: SIZES.paddingLarge,
-    marginTop: 40,
+    padding: SIZES.paddingMedium * 2,
   },
   emptyIconContainer: {
     width: 100,
@@ -530,10 +561,15 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     ...FONTS.regular,
-    fontSize: SIZES.small,
+    color: COLORS.darkGray,
+    textAlign: 'center',
+    marginTop: SIZES.paddingMedium,
+  },
+  emptySubText: {
+    ...FONTS.regular,
     color: COLORS.mediumGray,
     textAlign: 'center',
-    marginBottom: SIZES.marginMedium * 1.5,
+    marginTop: SIZES.small,
   },
   emptyButton: {
     backgroundColor: COLORS.primary,
@@ -546,6 +582,43 @@ const styles = StyleSheet.create({
     ...FONTS.medium,
     fontSize: SIZES.small,
     color: COLORS.white,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    ...FONTS.regular,
+    color: COLORS.darkGray,
+    marginTop: SIZES.small,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SIZES.paddingMedium * 2,
+  },
+  errorText: {
+    ...FONTS.regular,
+    color: COLORS.darkGray,
+    textAlign: 'center',
+    marginTop: SIZES.small,
+  },
+  retryButton: {
+    marginTop: SIZES.paddingMedium,
+    paddingHorizontal: SIZES.paddingMedium,
+    paddingVertical: SIZES.small,
+    backgroundColor: COLORS.primary,
+    borderRadius: SIZES.borderRadiusMedium,
+  },
+  retryButtonText: {
+    ...FONTS.regular,
+    color: COLORS.white,
+  },
+  listContent: {
+    padding: SIZES.paddingMedium,
+    paddingTop: 25,
   },
 });
 

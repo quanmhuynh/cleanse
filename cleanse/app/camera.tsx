@@ -4,6 +4,8 @@ import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-ca
 import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import { api } from './utils/api';
+import { useUser } from './context/UserContext';
 
 // Define types for our product data
 interface ProductWarning {
@@ -30,8 +32,16 @@ interface ProductData {
   recommendations: string[];
 }
 
+// Define interface for API response
+interface ApiResponse {
+  score: number;
+  reasoning: string;
+  image_url: string;
+}
+
 export default function CameraScreen() {
   const router = useRouter();
+  const { selectedProfileId } = useUser();
   // Camera permissions state
   const [permission, requestPermission] = useCameraPermissions();
   // State to store scanned barcode info
@@ -52,32 +62,98 @@ export default function CameraScreen() {
       setScanning(false);
       setLoading(true);
       
-      // Simulate API call to get product information
-      setTimeout(() => {
-        // Mock product data
+      // Check if we have a selected profile
+      if (!selectedProfileId) {
+        console.error('No profile selected');
+        setLoading(false);
         setProduct({
-          name: "Organic Granola",
-          brand: "Nature's Best",
-          image: "https://cdn-icons-png.flaticon.com/512/3724/3724788.png",
-          healthScore: 82,
+          name: "Error scanning product",
+          brand: "",
+          image: "https://cdn-icons-png.flaticon.com/512/1828/1828843.png",
+          healthScore: 0,
           nutritionalInfo: {
-            calories: "220kcal",
-            sugar: "12g",
-            sodium: "15mg",
-            protein: "5g",
-            fat: "8g"
+            calories: "N/A",
+            sugar: "N/A",
+            sodium: "N/A",
+            protein: "N/A",
+            fat: "N/A"
           },
-          warnings: [
-            "Contains nuts and seeds",
-            "May contain traces of milk"
-          ],
-          recommendations: [
-            "Good source of fiber",
-            "Low sodium"
-          ]
+          warnings: ["No user profile selected."],
+          recommendations: ["Please select a profile before scanning."]
+        });
+        return;
+      }
+      
+      console.log(`Scanning barcode: ${data} for user: ${selectedProfileId}`);
+      
+      // Use the API to get product information based on UPC
+      api.post<ApiResponse>('add_history', { 
+        email: selectedProfileId, // Use the actual profile ID
+        upc: data 
+      })
+      .then(response => {
+        console.log("API Response received:", response);
+        
+        // Verify that we received a valid response
+        if (!response || typeof response !== 'object') {
+          throw new Error("Invalid response from server");
+        }
+        
+        // Extract values with defaults for missing data
+        const score = response.score !== undefined ? response.score : 50;
+        const reasoning = response.reasoning || "No specific recommendations available";
+        const imageUrl = response.image_url || "https://cdn-icons-png.flaticon.com/512/3724/3724788.png";
+        
+        // Format the response into our ProductData format
+        setProduct({
+          name: `Product (UPC: ${data})`, // Include UPC in the name
+          brand: "Unknown Brand",
+          image: imageUrl,
+          healthScore: score,
+          nutritionalInfo: {
+            calories: "N/A",
+            sugar: "N/A",
+            sodium: "N/A",
+            protein: "N/A",
+            fat: "N/A"
+          },
+          warnings: [],
+          recommendations: [reasoning]
         });
         setLoading(false);
-      }, 2000);
+      })
+      .catch(error => {
+        console.error('Error fetching product data:', error);
+        setLoading(false);
+        
+        // Provide more specific user feedback based on the error
+        let errorMessage = "Failed to retrieve product information.";
+        let recommendation = "Please try scanning again.";
+        
+        if (error.message && error.message.includes("User with email")) {
+          errorMessage = "Your user profile could not be found on the server.";
+          recommendation = "Please complete your profile setup first.";
+        } else if (error.message && error.message.includes("Network")) {
+          errorMessage = "Network connection issue.";
+          recommendation = "Please check your internet connection and try again.";
+        }
+        
+        setProduct({
+          name: "Error scanning product",
+          brand: "",
+          image: "https://cdn-icons-png.flaticon.com/512/1828/1828843.png",
+          healthScore: 0,
+          nutritionalInfo: {
+            calories: "N/A",
+            sugar: "N/A",
+            sodium: "N/A",
+            protein: "N/A",
+            fat: "N/A"
+          },
+          warnings: [errorMessage],
+          recommendations: [recommendation]
+        });
+      });
     }
   };
 

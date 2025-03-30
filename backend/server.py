@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 from datetime import datetime
 
 from image_and_name import scrape_image
@@ -40,7 +40,6 @@ class UserModel(BaseModel):
 class HistoryInputModel(BaseModel):
     email: str
     upc: str
-    # image_url: str
 
 
 @app.post("/add_user")
@@ -63,44 +62,144 @@ def add_user(user: UserModel):
 
 @app.post("/add_history")
 def add_history(history: HistoryInputModel):
-    # Retrieve food information using the provided UPC.
-    food_info = get_product_info(history.upc)
-    # Retrieve user details from the database using the provided email.
-    user_info = db_manager.get_user(history.email)
-
-    # Call the LLM to evaluate the food against the user's profile.
-    llm_response = get_llm_response(user_info, food_info)
-
-    # Call scrape_image to get the image URL from the UPC.
-    image_url = scrape_image(history.upc)
-
-    # Automatically set the current date and time (in ISO format).
-    current_date = datetime.now().isoformat()
-
+    print(f"Received add_history request for email: {history.email}, UPC: {history.upc}")
+    
     try:
-        db_manager.add_history(
-            email=history.email,
-            upc=history.upc,
-            score=llm_response.score,
-            reasoning=llm_response.reasoning,
-            image_url=image_url,
-            date=current_date,
-        )
-        # Return just the LLM response.
-        return {
+        # First check if we already have a very recent scan of this UPC for this user
+        # to prevent duplicate entries from double-scans
+        existing_entries = db_manager.get_user_history(history.email)
+        
+        if existing_entries:
+            # Check for entries with same UPC in the last 1 minute
+            current_time = datetime.now()
+            for entry in existing_entries:
+                if entry['upc'] == history.upc:
+                    try:
+                        entry_time = datetime.fromisoformat(entry['date'])
+                        time_diff = (current_time - entry_time).total_seconds()
+                        # If an entry for this UPC exists within the last 60 seconds, return it
+                        if time_diff < 60:
+                            print(f"Found recent scan of UPC {history.upc} from {time_diff} seconds ago. Returning existing entry.")
+                            return {
+                                "score": entry['score'],
+                                "reasoning": entry['reasoning'],
+                                "image_url": entry['image_url'],
+                            }
+                    except Exception as e:
+                        print(f"Error parsing date for existing entry: {e}")
+                        # Continue processing if date parsing fails
+        
+        # Retrieve food information using the provided UPC.
+        food_info = get_product_info(history.upc)
+        print(f"Retrieved food info: {food_info}")
+        
+        # Retrieve user details from the database using the provided email.
+        user_info = db_manager.get_user(history.email)
+        print(f"User lookup result: {user_info}")
+
+        # If user doesn't exist, create a default user
+        if not user_info:
+            print(f"No user found. Creating default user for: {history.email}")
+            # Create a default user with minimal information
+            try:
+                # Add the default user directly to the database
+                db_manager.add_user(
+                    email=history.email,
+                    height=170.0,  # Default height in cm
+                    weight=70.0,   # Default weight in kg
+                    age=30,        # Default age
+                    physical_activity="Moderate",
+                    gender="not_specified",
+                    comorbidities=[],
+                    preferences="No specific preferences"
+                )
+                print(f"Default user created for: {history.email}")
+                # Get the newly created user
+                user_info = db_manager.get_user(history.email)
+                if not user_info:
+                    print(f"ERROR: Failed to retrieve newly created user: {history.email}")
+                    # Provide a minimal user info structure if we still can't get the user
+                    user_info = {
+                        "email": history.email,
+                        "height": 170.0,
+                        "weight": 70.0,
+                        "age": 30,
+                        "physical_activity": "Moderate",
+                        "gender": "not_specified",
+                        "comorbidities": [],
+                        "preferences": "No specific preferences"
+                    }
+            except Exception as e:
+                print(f"ERROR creating default user: {str(e)}")
+                # Provide a minimal user info structure if creation fails
+                user_info = {
+                    "email": history.email,
+                    "height": 170.0,
+                    "weight": 70.0,
+                    "age": 30,
+                    "physical_activity": "Moderate",
+                    "gender": "not_specified",
+                    "comorbidities": [],
+                    "preferences": "No specific preferences"
+                }
+
+        # Call the LLM to evaluate the food against the user's profile.
+        print(f"Calling LLM with user_info: {user_info} and food_info: {food_info}")
+        llm_response = get_llm_response(user_info, food_info)
+        print(f"LLM response: {llm_response}")
+
+        # Call scrape_image to get the image URL from the UPC.
+        try:
+            image_url = scrape_image(history.upc)
+            print(f"Image URL: {image_url}")
+        except Exception as img_error:
+            print(f"Error getting image: {str(img_error)}")
+            # Fallback to a default image
+            image_url = "https://cdn-icons-png.flaticon.com/512/3724/3724788.png"
+
+        # Automatically set the current date and time (in ISO format).
+        current_date = datetime.now().isoformat()
+
+        # Try to add the history but don't fail if it doesn't work
+        try:
+            db_manager.add_history(
+                email=history.email,
+                upc=history.upc,
+                score=llm_response.score,
+                reasoning=llm_response.reasoning,
+                image_url=image_url,
+                date=current_date,
+            )
+            print(f"History added successfully for {history.email}")
+        except Exception as history_error:
+            print(f"Warning: Could not add history record: {str(history_error)}")
+            # Continue even if we can't save the history
+
+        # Return the LLM response even if we couldn't save history
+        result = {
             "score": llm_response.score,
             "reasoning": llm_response.reasoning,
             "image_url": image_url,
         }
+        print(f"Returning result: {result}")
+        return result
+        
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        print(f"ERROR in add_history: {str(e)}")
+        # Return a fallback response with error details
+        return {
+            "score": 50,
+            "reasoning": f"Error processing product: {str(e)}. Please try again.",
+            "image_url": "https://cdn-icons-png.flaticon.com/512/1828/1828843.png", 
+        }
 
 
 @app.get("/get_history")
 def get_history(email: str):
     history_list = db_manager.get_user_history(email)
     if not history_list:
-        raise HTTPException(status_code=404, detail="No history found for this user")
+        # Return an empty list instead of raising an error
+        return []
     return history_list
 
 
@@ -113,6 +212,22 @@ def get_users():
     if not users:
         raise HTTPException(status_code=404, detail="No users found")
     return users
+
+
+@app.get("/get_user")
+def get_user(email: str):
+    """
+    Retrieve a specific user from the database by email.
+    Returns None if the user is not found, with a 200 status code.
+    """
+    print(f"Looking up user with email: {email}")
+    user = db_manager.get_user(email)
+    if not user:
+        print(f"No user found for email: {email}")
+        # Return None with a 200 status code, not 404
+        return None
+    print(f"User found: {user}")
+    return user
 
 
 if __name__ == "__main__":
